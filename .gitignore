@@ -1,0 +1,30 @@
+# Ignore local environment files
+.idea
+.py
+.env
+
+# Ignore Python virtual environment folders
+venv/
+env/
+
+# Ignore pycache and compiled Python files
+__pycache__/
+*.py[cod]
+
+# Ignore logs and other temporary files
+*.log
+*.swp
+*.swo
+*.tmp
+
+# Ignore database files
+*.db
+
+# Ignore VSCode specific files
+.vscode/
+*.code-workspace
+pyvenv.cfg
+.python-version
+examples/experimental/*
+notebooks/blip2_instructed_generation.ipynb
+notebooks/*

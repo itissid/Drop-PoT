@@ -1,0 +1,81 @@
+Prompt requirements for extracting data from hobokengirl.com
+Given all the events in the extracted file extract each event from a line.
+1. We want to avoid issues where the facts are not extracted correctly. So one tactic here is to ask it to state facts from the text. 
+2. I can split the input into chunks manually and ask it to extract data one by one. 
+3. I can also 
+
+TABLE_HEADERS = "| Event | Event Categories | Event Addresses | Event Start date | Event End date  | Event Start Time | Event Is Paid | Event Payment Details |"
+f"""
+You are an expert at parsing general text from a web page about events happening in {PLACES}. The word event in this context can 
+mean a lot of things including but not exclusively: restaurant opening, a fitness classes,  a guided tour, fair, art etc.
+
+I will give you a scraped free form text web document with links. The document is from a website called Hoboken Girl about 
+Events happening in {PLACES} on a given weekend and possibly continuing after the week.
+
+Most importantly  I want to accurately capture the following field paying attention the Event title, Address, date, time, Payment(if available):
+
+
+
+Once you have extracted the fields generate a call to the function create_event() with the above parameters
+
+Here are some examples with freeform text from web pages in triple quotes followed by the expected markdown table:
+
+Example 1:
+Mizuho Americas Open Brings LPGA Tour To Jersey City
+Wednesday, May 31st – Sunday, June 4th | 
+PURCHASE TICKETS (https://www.cuetoems.com/mizuho_2023/Tickets.aspx)
+The Mizuho Americas Open and the LPGA Tour comes to Liberty National Golf Club, located at 100 Caven Point Road in Jersey City, for the first time on Wednesday, May 31st through Sunday, June 4th. Hosted by LPGA icon and Major Champion, Michelle Wie West, the tournament will feature 120 LPGA Tour professional women golfers while 24 women junior golfers from the American Junior Golf Association (AJGA) Tour will compete in a separate tournament. The tournament will showcase the best women golfers in the world as they compete for a $2.75 million purse — one of the largest non-major championship purses on the LPGA Tour this 2023 season.
+Click here to purchase tickets (https://www.cuetoems.com/mizuho_2023/Tickets.aspx)
+and click 
+here (https://mizuhoamericasopen.com/)
+to learn about the Mizuho Americas Open.
+
+
+Output these fields in a markdown table in 3 bac tick quotes:
+```
+| Event | Event Categories | Event Addresses | Event Start date | Event End date | Event Times | Event Is Paid | Event Payment Details |
+```
+
+Example 2:
+Hello Hydration’s New Location + Spring/Summer Promotions
+Available until August 31st 
+| 
+BOOK AN APPOINTMENT (https://hellohydration.janeapp.com/)
+Hello Hydration, located at 132 Washington Street #302 in Hoboken and 255 Route 3, Suite 206 in Secaucus, is opening a third location in Garden State Plaza Mall this month. From now until August 31st, all three med spa locations will be running a special spring/summer promotion for 
+HG 
+readers. You can receive $10/unit for Botox (regularly $12/unit), $150 off fillers (regularly $700), and $50 off your next treatment (must be booked within 90 days of last treatment), when you mention ‘Hoboken Girl’ when booking your appointment.
+Click here to book an appointment (https://hellohydration.janeapp.com/)
+and click 
+here (https://hellohydrationnj.com/)
+to learn more about Hello Hydration.
+
+
+
+For the following event:
+
+Example 3: 
+Rosé Soirée at Terra e Mare
+Friday, May 19th from 7:30PM-9:30PM 
+| 
+BUY TICKETS (https://play.landmarkhospitality.com/event/rose-soiree-2/)
+Terra e Mare, located inside Hudson House at 2 Chapel Ave, Unit 2 in Jersey City, is hosting a Rosé Soirée this Friday, May 19th from 7:30PM-9:30PM to kick off the warm weather season. The event will include two hours of endless rosé from their various partners, passed hors d’oeuvres and delicious food stations as you enjoy golden hour on the Hudson. Make sure you let them know 
+The Hoboken Girl
+sent you.
+Click here to purchase your tickets to the Rosé Soirée (https://play.landmarkhospitality.com/event/rose-soiree-2/)
+and click 
+here (https://hudsonhousenj.com/)
+to learn more about Terra e Mare located within Hudson House.
+
+create_event(
+    "Rosé Soirée at Terra e Mare", 
+    "The event will include two hours of endless rosé from their various partners, passed hors d’oeuvres and delicious food stations as you enjoy golden hour on the Hudson. Make sure you let them know The Hoboken Girl sent you.")
+    ["Networking", "Food And Drinks", "hors d’oeuvres"],
+    ["2 Chapel Ave, Unit 2, Jersey City, NJ"],
+    is_ongoing=False,
+    event_start_date
+"""
+
+2. I can give the extraction step an examples to extract 1 row at a time in the System prompt. That should reduce the context length
+and the cost.
+
+3. Define the necessary and optional fields. Define types of each
