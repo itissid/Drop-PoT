@@ -15,6 +15,8 @@ from utils.cli_utils import (
     ask_user_helper,
     choose_file,
     would_you_like_to_continue,
+    go_autopilot,
+    edit_dict,
 )
 from utils.prompt_utils import (
     base_prompt_hoboken_girl,
@@ -24,18 +26,6 @@ from model.types import Event, create_event
 
 
 app = typer.Typer()
-
-
-def events_gen(filename: str, n_expected_events: int) -> Generator:
-    # Write a function that accepts a filename and returns a generator that yields one event at a time.
-
-    with open(filename, "r") as f:
-        all_lines = f.readlines()
-        data = "\n".join(all_lines)
-        event_groups = data.split("\n\n$$\n\n")
-        assert len(event_groups) == n_expected_events  # Safety check
-        for event_string in event_groups:
-            yield event_string
 
 
 @app.command()
@@ -114,7 +104,8 @@ def _ingest_urls_helper(
     return url_file_names
 
 
-# Custom post processing logic for hoboken girl files.
+# Custom post processing logic for hoboken girl files. Insert markers between events.
+# Regex is imperfect but since the files have 1000+ events ... it's good enough for people to correct a few by hand.
 @app.command()
 def post_process(file_path: Path = typer.Argument()) -> None:
     input_path = Path(file_path).absolute()
@@ -164,15 +155,53 @@ def extract_serialize_events(
     Call parse_events and get
     """
     if ingestable_article_file:
-        ingestable_article_file = Path(ingestable_article_file).absolute()  
+        ingestable_article_file = Path(ingestable_article_file).absolute()
     else:
         # TODO: Implement manual input to debug.
         typer.echo("No file not supported yet. Exiting")
         return
-    for event in _parse_events(cities, date, ingestable_article_file):
-        import ipdb
-        ipdb.set_trace()
-        print(event)
+    if not cities and type(cities) != list:
+        raise ValueError("Cities are required and must be a list.")
+    autopilot = False
+    events = _event_gen(ingestable_article_file)
+    if not events:
+        return
+
+    # 1. Send System prompt.
+    ai = AI()
+    messages = ai.start(
+        base_prompt_hoboken_girl(cities, date.strftime("%Y-%m-%d")),
+        # NOTE: Add an optional clarification Step, here is where we might add a hook prompt for the AI to ask the user in case anything is unclear
+        # this can be useful for AI to self reflect and produce more grounded prompts.
+        "Wait for me to paste an event below.",
+    )
+    print(f"I have {len(messages)} messages in my memory and the last was:")
+    print(messages[-1]["content"])
+    # TODO: Add some assertion about messages recieved
+
+    for i, event in enumerate(events):
+        # 2. Send the remaining prompts
+        try:
+            event_obj = _parse_events(ai, messages[:1], event)
+            if not autopilot:
+                typer.prompt("Confirm is the event looks correct or edit it.")
+                typer.echo(f"Raw Event text: \n{event}")
+                edit_dict(event_obj)
+                # The user may want to turn on autopilot after a few events.
+                if go_autopilot():
+                    typer.echo(
+                        "Autopilot is on. Processing all events without human intervention."
+                    )
+                    autopilot = True
+            else:
+                typer.echo(
+                    "Autopilot is on. Processing all events without human intervention."
+                )
+            # TODO: 3. Save the events
+        except Exception as e:
+            typer.echo(f"Error parsing events. {e}")
+            continue
+        print(event_obj)
 
 
 ALLOWED_FUNCTIONS = {
@@ -180,21 +209,7 @@ ALLOWED_FUNCTIONS = {
 }
 
 
-def _parse_events(
-    cities: List[str],
-    date: datetime.datetime,
-    ingestable_article_file: Path,
-):
-    # 1. Send System prompt.
-    if not cities and type(cities) != list:
-        raise ValueError("Cities are required and must be a list.")
-    events = []
-    # 1. Read the file and get the events.
-    # 2. Ask the user if the number of events is correct.
-    # 3. If not, ask the user to input the events manually.
-    # 4. If yes, then parse the events.
-    # 5. If parsing is not correct, ask the user to correct the fields.
-    # 6. If parsing is correct, save the event.
+def _event_gen(ingestable_article_file: Path):
     with open(ingestable_article_file, "r") as f:
         lines = f.readlines()
         all_text = "\n".join(lines)
@@ -213,55 +228,51 @@ def _parse_events(
         )
         # Ask if user if all is good before proceeding.
         if not would_you_like_to_continue():
-            return
-
+            return None
     typer.echo("Beginning parsing of events using AI.")
-    ai = AI()
-    messages = ai.start(
-        base_prompt_hoboken_girl(cities, date.strftime("%Y-%m-%d")),
-        # NOTE: Add an optional clarification Step, here is where we might add a hook prompt for the AI to ask the user in case anything is unclear
-        # this can be useful for AI to self reflect and produce more grounded prompts.
-        "Wait for me to paste an event below.",
+    return events
+
+
+def _parse_events(ai: AI, base_messages, event):
+    messages = ai.next(
+        base_messages,
+        f"""
+            Process the following event in backticks according to the instructions provided previously.
+            ```
+            {event}
+            ```
+        """,
+        function=hoboken_girl_event_function_param(),
+        explicitly_call=True,
     )
-    for event in events:
-        # print(event)
+    content = messages[-1]["content"]
+    print(content)
+    function_call = json.loads(messages[-1]["function_call"])
+    fn_name = function_call["name"]
+    fn_args = asdict(function_call["arguments"])
 
-        messages = ai.next(
-            messages[:1],
-            f"""
-                Process the following event in backticks according to the instructions provided previously.
-                ```
-                {event}
-                ```
-            """,
-            function=hoboken_girl_event_function_param(),
-            explicitly_call=True,
+    # NOTE: This step could be used to create training data for a future model to do this better.
+    event_obj = None
+    if fn_name and fn_name in ALLOWED_FUNCTIONS:
+        event_obj = ALLOWED_FUNCTIONS[fn_name](**fn_args)
+
+    else:
+        typer.echo(
+            f"*** No function name found or not in Allowed functions list: {','.join(ALLOWED_FUNCTIONS.keys())}! for event: \n{event}"
         )
-        content = messages[-1]["content"]
-        print(content)
-        function_call = json.loads(messages[-1]["function_call"])
-        fn_name = function_call["name"]
-        fn_args = asdict(function_call["arguments"])
-        
-        # TODO: Ask user if they want to continue in auto mode and save all the elements.
-        # NOTE: What might be interesting is that this step could be used to create training data for a future model to do this better.
-        event_obj = None
-        if fn_name and fn_name in ALLOWED_FUNCTIONS:
-            event_obj = ALLOWED_FUNCTIONS[fn_name](**fn_args)
+    yield event_obj
 
-            
-        else:
-            typer.echo(
-                f"*** No function name found or not in Allowed functions list: {','.join(ALLOWED_FUNCTIONS.keys())}! for event: \n{event}"
-            )
-        yield event_obj
-    # ai.start()
-    # 2. User input: Ask the user: # Of events in the file is ok and process automatically.
-    # 3. Assistant: Take event `i` and ask the user to confirm if the parsing was ok for all fields.
-    # If not the user will specify the field's value to be corrected.
-    # Those fields will be finally added to the event and it will be saved.
-    # If the user says the event is ok, then save event as such.
 
+def events_gen(filename: str, n_expected_events: int) -> Generator:
+    # Write a function that accepts a filename and returns a generator that yields one event at a time.
+
+    with open(filename, "r") as f:
+        all_lines = f.readlines()
+        data = "\n".join(all_lines)
+        event_groups = data.split("\n\n$$\n\n")
+        assert len(event_groups) == n_expected_events  # Safety check
+        for event_string in event_groups:
+            yield event_string
 
 
 def _serialize_event(event: Event):

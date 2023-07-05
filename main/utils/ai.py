@@ -26,6 +26,12 @@ import logging
 
 import openai
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -75,14 +81,13 @@ class AI:
         logger.debug(f"Creating a new chat completion: {messages}")
         try:
             if not function:
-                response = openai.ChatCompletion.create(
+                response = completion_with_backoff(
                     messages=messages,
                     stream=True,
                     model=self.model,
                     temperature=self.temperature,
                 )
-            else:
-                response = openai.ChatCompletion.create(
+                response = completion_with_backoff(
                     messages=messages,
                     stream=True,
                     model=self.model,
@@ -93,9 +98,7 @@ class AI:
                     temperature=self.temperature,
                 )
         except Exception as e:
-            import ipdb
-
-            ipdb.set_trace()
+            logger.error(f"Error in chat completion: {e}")
             raise e
 
         chat = []
@@ -114,13 +117,12 @@ class AI:
                             "arguments"
                         ]
                 if "content" in delta:
-                    msg = delta.get("content", "") or "" # Key may be there but None
+                    msg = (
+                        delta.get("content", "") or ""
+                    )  # Key may be there but None
                     print(msg, end="")
                     chat.append(msg)
             except Exception as e:
-                import ipdb
-
-                ipdb.set_trace()
                 raise e
         print(func_call)
         print()
@@ -133,3 +135,8 @@ class AI:
         ]
         logger.debug(f"Chat completion finished: {messages}")
         return messages
+
+
+@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
+def completion_with_backoff(**kwargs):
+    return openai.Completion.create(**kwargs)

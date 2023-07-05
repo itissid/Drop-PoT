@@ -24,6 +24,108 @@ class CustomDictParser(click.ParamType):
         return CustomDict(dict(item.split("=") for item in value.split(",")))
 
 
+def edit_dict(
+    data: Dict[str, Union[str, int, float, List[Union[str, int, float]]]]
+):
+    typer.echo("The event is:")
+    _pp(data)
+    edits = {}
+
+    while True:
+        typer.echo("Enter a key to edit (or 'exit' to finish):")
+        key = typer.prompt("Key")
+        if key.lower() == "exit":
+            break
+        if key not in data:
+            typer.echo(f"No such key '{key}'! Try again.")
+            continue
+
+        value_before = data[key]
+        typer.echo(
+            f"Current value: {_optionally_format_colorama(str(value_before), True, Fore.BLUE)}"
+        )
+        typer.echo("Enter the new value (or 'exit' to finish):")
+
+        if isinstance(value_before, list):
+            typer.echo(
+                "Enter a comma-separated list without spaces, No `[`, `]` braces]"
+            )
+            new_val = typer.prompt("New value")
+            if new_val.lower() == "exit":
+                break
+            try:
+                value_after = [
+                    type(value_before[0])(i) for i in new_val.split(",")
+                ]
+            except ValueError as e:
+                typer.echo(
+                    f"{_optionally_format_colorama('Error. Try again', True, Fore.RED)} \n{_optionally_format_colorama(str(e), True, Fore.RED)}"
+                )
+                continue
+        else:
+            value_before = cast(Union[str, int, float], value_before)
+            value_after = typer.prompt("New value", type=type(value_before))
+            if str(value_after).lower() == "exit":
+                break
+
+        # Skip recording the edit if the value hasn't changed
+        if value_after == value_before:
+            continue
+        else:
+            _edit_dict = {key: value_after}
+            typer.echo(_optionally_format_colorama("New Dictionary:", True, Fore.GREEN))
+            _pp(data | _edit_dict)
+            data[key] = value_after
+            edits[key] = {
+                "value_before": value_before,
+                "value_after": value_after,
+            }
+
+    return data, edits
+
+
+def _pp(d: Dict) -> None:
+    for k, v in d.items():
+        key = _optionally_format_colorama(
+            str(k), should_format=True, color=Fore.GREEN
+        )
+        val = _optionally_format_colorama(
+            str(v), should_format=True, color=Fore.BLUE
+        )
+        typer.echo(f"{key}: {val} ({type(v)})")
+
+
+@app.command()
+def test_edit_dict():
+    data = {"key1": "value1", "key2": "value2", "key3": [1, 2, 3], "key4": ["a", "b"], "key5": 1.02}
+    edited_data, edited_dict = edit_dict(data)
+    typer.echo("Edited dictionary:")
+    typer.echo(edited_data)
+    typer.echo("Edit record:")
+    typer.echo(edited_dict)
+
+
+def go_autopilot() -> bool:
+    """
+    Use typer to ask a user to choose between autopilot or manual mode.
+    If autopilot return truue
+    """
+    user_option = typer.prompt(
+        "Would you like to use the autopilot or manual mode? (autopilot/manual)",
+        default="autopilot",
+    )
+    while user_option.lower() not in ["autopilot", "manual"]:
+        typer.echo("Invalid input. Please enter 'autopilot' or 'manual'.")
+        user_option = typer.prompt(
+            "Would you like to use the autopilot or manual mode? (autopilot/manual)",
+        )
+    if user_option.lower() == "autopilot":
+        return True
+    elif user_option.lower() == "manual":
+        return False
+    return False
+
+
 def would_you_like_to_continue() -> bool:
     user_option = typer.prompt(
         "Would you like to use the continue or exit? (yes/exit)",
