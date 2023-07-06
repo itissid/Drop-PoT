@@ -1,9 +1,6 @@
 # poc_drop_content_search
 This is a PoC for ingesting text content into a vector database from which we can retrieve relevant search results given a NL Question.
 
-# poc_drop_content_search
-This is a PoC for ingesting text content into a vector database from which we can retrieve relevant search results given a NL Question.
-
 # UPDATE (6th July): Currently debugging some issues in event extraction*. Stay tuned.
 
 # Lay of the land 
@@ -52,6 +49,8 @@ Since its heuristic one need to double check if all events have been identified(
 ```
 
 # 3. Extract Events(Use AI!)
+> YOU WILL NEED AN OPEN AI KEY.  https://openai.com/pricing
+
 WIP: See updates on July 6th but the idea is to create Event objects per the prompt instruction to index into the SQLite index.
 ## Example command is 
 ```
