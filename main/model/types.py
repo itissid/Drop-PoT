@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 import enum
-from utils import flatten
+from utils.extraction_utils import flatten_list
 import datetime
 
 
@@ -68,9 +68,9 @@ class Event:
             raise ValueError("Payment mode is required if the event is paid.")
         
         if self.addresses:
-            self.addresses = flatten(self.addresses)
+            self.addresses = flatten_list(self.addresses)
         if self.categories:
-            self.categories = flatten(self.categories)
+            self.categories = flatten_list(self.categories)
 
 
 # Maybe there is a better way to do this
