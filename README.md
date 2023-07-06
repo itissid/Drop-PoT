@@ -13,13 +13,14 @@ Scrape and Ingest data -> Post Process Data -> Extract Events*        -> Embeddi
 ```
 
 
-1. Code base:
+## Code base layout:
 - Core data structure for `Event` is: `main/model/types.py`
 - Prompts for extraction are in `main/prompts/hoboken_girl_prompt.py`
 - AI and DB utilities are in `main/utils/ai.py` and `main/utils/db.py` along woth other utility functions
 -  Main executable is a CLI interface in `main/hoboken_girl_extraction.py`
 
-2. After setting up virtualenv run:
+## After setting up virtualenv/pyenv you can
+Run:
 `python main/hoboken_girl_extraction.py --help`
 You will see three commands that are explained in the flow above.
 ```
@@ -52,11 +53,13 @@ Since its heuristic one need to double check if all events have been identified(
 > YOU WILL NEED AN OPEN AI KEY.  https://openai.com/pricing
 
 WIP: See updates on July 6th but the idea is to create Event objects per the prompt instruction to index into the SQLite index.
-## Example command is 
+## Example command is :
 ```
 python main/hoboken_girl_extraction.py extract-serialize-events 2023-05-23 --cities Hoboken --cities JerseyCity --ingestable-article-file ~/workspace/scraping/examples/postprocessed/hobokengirl_com_hoboken_jersey_city_events_june_23_2023_20230704_170142_postprocessed.txt 
-
 ```
+
+# 4. NEXT: Use OpenAI Embeddings to create Embedding vectors
+TODO: Idea can add  them to SQLLite and use SQLite extension called sqllite-vss https://observablehq.com/@asg017/introducing-sqlite-vss
 
 
 
