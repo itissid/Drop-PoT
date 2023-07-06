@@ -4,13 +4,13 @@ This is a PoC for ingesting text content into a vector database from which we ca
 # UPDATE (6th July): Currently debugging some issues in event extraction*. Stay tuned.
 
 # Lay of the land 
-0. Flow
+## Data Extraction Flow
+Always start with the data first and play with it to get a good feel of what it looks like. *THEN* comes the ML/AI play.
 ```
 Scrape and Ingest data -> Post Process Data -> Extract Events*        -> Embedding
      |                        |                    |                        |
   Local File                Local File          SQLLite            SQLLite(or a Vectorstore)
 ```
-
 
 
 1. Code base:
