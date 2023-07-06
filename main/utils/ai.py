@@ -28,13 +28,16 @@ import openai
 
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_random_exponential,
 )
 
 logger = logging.getLogger(__name__)
 
-
+# Parallelization of requests. 
+# Dealing with error: Each task has a task ID. We need to keep of which tasks completed 
+# 
 # Right now only open AI is supported, but this could be extended to other APIs.
 class AI:
     def __init__(self, model: str = "gpt-4", temperature: float = 0.1):
@@ -46,10 +49,10 @@ class AI:
         except openai.InvalidRequestError:
             print(
                 f"Model {model} not available for provided API key. Reverting "
-                "to gpt-3.5-turbo. Sign up for the GPT-4 wait list here: "
+                "to gpt-3.5-turbo-16k. Sign up for the GPT-4 wait list here: "
                 "https://openai.com/waitlist/gpt-4-api"
             )
-            self.model = "gpt-3.5-turbo"
+            self.model = "gpt-3.5-turbo-16k"
 
     def start(self, system: str, user: str, function=None):
         messages = [
@@ -87,6 +90,7 @@ class AI:
                     model=self.model,
                     temperature=self.temperature,
                 )
+            else:
                 response = completion_with_backoff(
                     messages=messages,
                     stream=True,
@@ -137,6 +141,17 @@ class AI:
         return messages
 
 
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
+@retry(
+    wait=wait_random_exponential(min=1, max=60),
+    stop=stop_after_attempt(6),
+    retry=retry_if_exception_type(
+        (
+            openai.error.RateLimitError,
+            openai.error.APIConnectionError,
+            openai.error.ServiceUnavailableError,
+            openai.error.APIError,
+        )
+    ),
+)
 def completion_with_backoff(**kwargs):
-    return openai.Completion.create(**kwargs)
+    return openai.ChatCompletion.create(**kwargs)
