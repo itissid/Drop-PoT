@@ -124,11 +124,11 @@ class AI:
                     msg = (
                         delta.get("content", "") or ""
                     )  # Key may be there but None
-                    print(msg, end="")
                     chat.append(msg)
             except Exception as e:
                 raise e
-        print(func_call)
+        logger.debug("".join(chat))
+        logger.debug(func_call)
         print()
         messages += [
             {

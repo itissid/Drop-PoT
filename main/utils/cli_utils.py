@@ -5,9 +5,11 @@ import click
 from typing import Any, Dict, List, Optional, Union, cast
 from colorama import Fore
 from typing import NewType
+import logging 
 
 app = typer.Typer()
 
+logger = logging.getLogger(__name__)
 
 class CustomDict:
     def __init__(self, value: Dict[str, str]):
@@ -32,7 +34,7 @@ def edit_dict(
     edits = {}
 
     while True:
-        typer.echo("Enter a key to edit (or 'exit' to finish):")
+        typer.echo("Enter a key to edit a key (or 'exit' when you are done):")
         key = typer.prompt("Key")
         if key.lower() == "exit":
             break
@@ -73,7 +75,9 @@ def edit_dict(
             continue
         else:
             _edit_dict = {key: value_after}
-            typer.echo(_optionally_format_colorama("New Dictionary:", True, Fore.GREEN))
+            typer.echo(
+                _optionally_format_colorama("New Dictionary:", True, Fore.GREEN)
+            )
             _pp(data | _edit_dict)
             data[key] = value_after
             edits[key] = {
@@ -97,7 +101,13 @@ def _pp(d: Dict) -> None:
 
 @app.command()
 def test_edit_dict():
-    data = {"key1": "value1", "key2": "value2", "key3": [1, 2, 3], "key4": ["a", "b"], "key5": 1.02}
+    data = {
+        "key1": "value1",
+        "key2": "value2",
+        "key3": [1, 2, 3],
+        "key4": ["a", "b"],
+        "key5": 1.02,
+    }
     edited_data, edited_dict = edit_dict(data)
     typer.echo("Edited dictionary:")
     typer.echo(edited_data)

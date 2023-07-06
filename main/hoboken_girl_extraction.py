@@ -6,6 +6,7 @@ import re
 from typing import Generator, List, Optional
 
 import click
+from colorama import Fore
 import typer
 from utils.db import DB
 import enum
@@ -17,6 +18,7 @@ from utils.cli_utils import (
     would_you_like_to_continue,
     go_autopilot,
     edit_dict,
+    _optionally_format_colorama,
 )
 from utils.prompt_utils import (
     base_prompt_hoboken_girl,
@@ -24,8 +26,40 @@ from utils.prompt_utils import (
 )
 from model.types import Event, create_event
 
+import traceback, logging
 
 app = typer.Typer()
+
+logger = logging.getLogger(__name__)
+# Create a file handler.
+file_handler = logging.FileHandler("app.log")
+
+# Create a console handler.
+console_handler = logging.StreamHandler()
+
+# Create a formatter and add it to the handlers.
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Add the handlers to the logger.
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+
+@app.callback()
+def logging_setup(
+    loglevel: str = typer.Option("INFO", help="Set the log level")
+):
+    """
+    Setup logging configuration.
+    """
+    # Set the log level of the logger according to the command line argument
+    loglevel = loglevel.upper()
+    if loglevel not in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
+        logger.error(f"Invalid log level: {loglevel}. Defaulting to INFO.")
+        loglevel = "INFO"
+    logger.setLevel(getattr(logging, loglevel))
 
 
 @app.command()
@@ -173,7 +207,7 @@ def extract_serialize_events(
         base_prompt_hoboken_girl(cities, date.strftime("%Y-%m-%d")),
         # NOTE: Add an optional clarification Step, here is where we might add a hook prompt for the AI to ask the user in case anything is unclear
         # this can be useful for AI to self reflect and produce more grounded prompts.
-        "Wait for me to paste an event below.",
+        "Wait for me to send/paste an event below.",
     )
     print(f"I have {len(messages)} messages in my memory and the last was:")
     print(messages[-1]["content"])
@@ -199,9 +233,9 @@ def extract_serialize_events(
                 )
             # TODO: 3. Save the events
         except Exception as e:
-            typer.echo(f"Error parsing events. {e}")
+            logger.exception(e)
             continue
-        print(event_obj)
+        logger.debug(event_obj)
 
 
 ALLOWED_FUNCTIONS = {
@@ -246,7 +280,7 @@ def _parse_events(ai: AI, base_messages, event):
         explicitly_call=True,
     )
     content = messages[-1]["content"]
-    print(content)
+    logger.debug(content)
     function_call = json.loads(messages[-1]["function_call"])
     fn_name = function_call["name"]
     fn_args = asdict(function_call["arguments"])
@@ -306,13 +340,6 @@ def system_prompt(db: DB):
         }
     ]
 
-
-# TODO:
-#
-# write an entry point with the cleaned pages from the HG and its published date, time zone, zip code and a prefix to use for
-# logs written to the file system to a directory.
-# TODO:
-# Entry point that will scrape the pages for HG and return.
 
 if __name__ == "__main__":
     app()
