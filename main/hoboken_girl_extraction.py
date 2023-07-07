@@ -3,7 +3,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 import re
-from typing import Generator, List, Optional
+from typing import Dict, Generator, List, Optional
 
 import click
 from colorama import Fore
@@ -19,14 +19,16 @@ from utils.cli_utils import (
     go_autopilot,
     edit_dict,
     _optionally_format_colorama,
+    _pp,
+    formatted_dict,
 )
 from utils.prompt_utils import (
     base_prompt_hoboken_girl,
     hoboken_girl_event_function_param,
 )
 from model.types import Event, create_event
+import logging
 
-import traceback, logging
 
 app = typer.Typer()
 
@@ -184,6 +186,9 @@ def extract_serialize_events(
         None,
         help="The file with scraped data on events separated by the $$ delimiter. If no file then the user will input text events manually on the terminal.",
     ),
+    version: str = typer.Option(
+        "v1", help="The version of the event extractor to use"
+    ),
 ):
     """
     Call parse_events and get
@@ -210,17 +215,27 @@ def extract_serialize_events(
         "Wait for me to send/paste an event below.",
     )
     print(f"I have {len(messages)} messages in my memory and the last was:")
-    print(messages[-1]["content"])
     # TODO: Add some assertion about messages recieved
+    print(messages[-1]["content"])
 
+    max_acceptable_errors = 5
+    num_errors = 0
     for i, event in enumerate(events):
         # 2. Send the remaining prompts
         try:
             event_obj = _parse_events(ai, messages[:1], event)
+            if not event_obj:
+                # TODO: Log this in SQL as an error in processing as NoEventFound.
+                continue
             if not autopilot:
-                typer.prompt("Confirm is the event looks correct or edit it.")
-                typer.echo(f"Raw Event text: \n{event}")
-                edit_dict(event_obj)
+                typer.echo("Confirm is the event looks correct or edit it")
+                typer.echo(
+                    f"{_optionally_format_colorama('Raw Event text', True, Fore.GREEN)}'\n'{event}"
+                )
+                # import ipdb
+
+                # ipdb.set_trace()
+                edit_dict(asdict(event_obj))
                 # The user may want to turn on autopilot after a few events.
                 if go_autopilot():
                     typer.echo(
@@ -234,6 +249,12 @@ def extract_serialize_events(
             # TODO: 3. Save the events
         except Exception as e:
             logger.exception(e)
+            if num_errors > max_acceptable_errors:
+                typer.echo(
+                    f"Too many errors. Stopping processing. Please fix the errors and run the command again."
+                )
+                return
+            num_errors += 1
             continue
         logger.debug(event_obj)
 
@@ -263,11 +284,19 @@ def _event_gen(ingestable_article_file: Path):
         # Ask if user if all is good before proceeding.
         if not would_you_like_to_continue():
             return None
-    typer.echo("Beginning parsing of events using AI.")
     return events
 
 
-def _parse_events(ai: AI, base_messages, event):
+def _parse_events(
+    ai: AI, base_messages: List[Dict[str, str]], event: str
+) -> Optional[Event]:
+    """
+    This function will take the event text and parse it into an Event object using AI
+    If event is not parsed we leave it to the caller to decide what to do with it.
+
+    TODO: Replace hoboken_girl_event_function_param with a generic Callable.
+    TODO: Write a test to mock out the AI and test various values for messages.
+    """
     messages = ai.next(
         base_messages,
         f"""
@@ -280,21 +309,36 @@ def _parse_events(ai: AI, base_messages, event):
         explicitly_call=True,
     )
     content = messages[-1]["content"]
-    logger.debug(content)
-    function_call = json.loads(messages[-1]["function_call"])
-    fn_name = function_call["name"]
-    fn_args = asdict(function_call["arguments"])
+
+    logger.debug(content)  # Typically empty if there is a function call.
+    function_call = json.loads(messages[-1].get("function_call", "{}"))
+    fn_name = function_call.get("name")
+    fn_args = json.loads(function_call.get("arguments", "{}"))
 
     # NOTE: This step could be used to create training data for a future model to do this better.
     event_obj = None
     if fn_name and fn_name in ALLOWED_FUNCTIONS:
         event_obj = ALLOWED_FUNCTIONS[fn_name](**fn_args)
-
+        logger.debug(
+            f"{_optionally_format_colorama('Raw event:', True, Fore.RED)}\n{event}"
+        )
+        logger.debug(
+            _optionally_format_colorama("Parsed event:", True, Fore.RED)
+        )
+        logger.debug(
+            "\n".join(
+                [
+                    f"{k}: {str(v)} ({type(v)})"
+                    for k, v in formatted_dict(asdict(event_obj)).items()
+                ]
+            )
+        )
     else:
-        typer.echo(
+        logger.warn(
             f"*** No function name found or not in Allowed functions list: {','.join(ALLOWED_FUNCTIONS.keys())}! for event: \n{event}"
         )
-    yield event_obj
+        logger.warn(f"Last message recieved from AI: {content}")
+    return event_obj
 
 
 def events_gen(filename: str, n_expected_events: int) -> Generator:
