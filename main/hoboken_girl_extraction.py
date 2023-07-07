@@ -256,6 +256,16 @@ def extract_serialize_events(
 
     max_acceptable_errors = 5
     num_errors = 0
+
+    element_names_already_seen = set(
+        get_column_by_version_and_filename(
+            ctx.obj["engine"],
+            "name",
+            version,
+            ingestable_article_file.name,
+        )
+    )
+
     for i, event in enumerate(events):
         # 2. Send the remaining prompts
         try:

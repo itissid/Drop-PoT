@@ -1,6 +1,6 @@
 from dataclasses import asdict
 import logging
-from typing import Optional
+from typing import List, Optional
 from sqlalchemy import (
     Column,
     Integer,
@@ -12,7 +12,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy import func
 from model.types import Event
 
 logger = logging.getLogger(__name__)
@@ -71,3 +71,56 @@ def add_event(
     finally:
         session.close()
     return -1
+
+
+def get_max_id_by_version_and_filename(engine, version, filename):
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        # Query the database for the maximum id value with the given version and filename
+        max_id = (
+            session.query(func.max(ParsedEventTable.id))
+            .filter(
+                ParsedEventTable.version == version,
+                ParsedEventTable.filename == filename,
+            )
+            .scalar()
+        )
+        return max_id
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Failed to retrieve the max id from ParsedEventTable for version: {version} and filename: {filename}!"
+        )
+        logger.exception(e)
+    finally:
+        session.close()
+
+
+def get_column_by_version_and_filename(
+    engine, column: str, version: str, filename: str
+) -> List[str]:
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        # Query the database for the given column with the given version and filename
+        column_values = (
+            session.query(getattr(ParsedEventTable, column))
+            .filter(
+                ParsedEventTable.version == version,
+                ParsedEventTable.filename == filename,
+            )
+            .all()
+        )
+
+        # The query returns a tuple, so we get the first item
+        return [value[0] for value in column_values]
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Failed to retrieve the {column} from ParsedEventTable for version: {version} and filename: {filename}!"
+        )
+        logger.exception(e)
+    finally:
+        session.close()
+    return []

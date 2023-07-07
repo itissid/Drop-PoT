@@ -35,9 +35,10 @@ from tenacity import (
 
 logger = logging.getLogger(__name__)
 
-# Parallelization of requests. 
-# Dealing with error: Each task has a task ID. We need to keep of which tasks completed 
-# 
+
+# Parallelization of requests.
+# Dealing with error: Each task has a task ID. We need to keep of which tasks completed
+#
 # Right now only open AI is supported, but this could be extended to other APIs.
 class AI:
     def __init__(self, model: str = "gpt-4", temperature: float = 0.1):
@@ -52,7 +53,7 @@ class AI:
                 "to gpt-3.5-turbo-16k. Sign up for the GPT-4 wait list here: "
                 "https://openai.com/waitlist/gpt-4-api"
             )
-            self.model = "gpt-3.5-turbo-16k"
+            self.model = "gpt-3.5-turbo"
 
     def start(self, system: str, user: str, function=None):
         messages = [
