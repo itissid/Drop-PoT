@@ -143,7 +143,7 @@ class AI:
 
 @retry(
     wait=wait_random_exponential(min=1, max=60),
-    stop=stop_after_attempt(6),
+    stop=stop_after_attempt(10),
     retry=retry_if_exception_type(
         (
             openai.error.RateLimitError,

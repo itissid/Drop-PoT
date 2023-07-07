@@ -6,11 +6,9 @@ import re
 from typing import Dict, Generator, List, Optional
 from sqlalchemy import create_engine
 
-import click
 from colorama import Fore
 import typer
 from utils.db import DB
-import enum
 from utils.ai import AI
 from utils.scraping import get_documents
 from utils.cli_utils import (
@@ -20,7 +18,6 @@ from utils.cli_utils import (
     go_autopilot,
     edit_dict,
     _optionally_format_colorama,
-    _pp,
     formatted_dict,
 )
 from utils.prompt_utils import (
@@ -28,13 +25,22 @@ from utils.prompt_utils import (
     hoboken_girl_event_function_param,
 )
 from model.types import Event, create_event
-from model.persistence_model import add_event
-from . import engine
+from model.persistence_model import (
+    add_event,
+    get_column_by_version_and_filename,
+    ParsedEventTable,
+    Base,
+)
+import click
+from sqlalchemy_utils import database_exists, create_database
+
+# from .main import engine
 import logging
 
 
 app = typer.Typer()
 
+# LOGGING #
 logger = logging.getLogger(__name__)
 # Create a file handler.
 file_handler = logging.FileHandler("app.log")
@@ -54,7 +60,9 @@ logger.addHandler(console_handler)
 
 @app.callback()
 def logging_setup(
-    loglevel: str = typer.Option("INFO", help="Set the log level")
+    ctx: typer.Context,
+    loglevel: str = typer.Option("INFO", help="Set the log level"),
+    force_initialize_db: bool = False,
 ):
     """
     Setup logging configuration.
@@ -65,6 +73,28 @@ def logging_setup(
         logger.error(f"Invalid log level: {loglevel}. Defaulting to INFO.")
         loglevel = "INFO"
     logger.setLevel(getattr(logging, loglevel))
+    logger.debug(f"In callback {ctx.invoked_subcommand}")
+    click.get_current_context().obj = {}
+
+    obj = click.get_current_context().obj
+    if (
+        ctx.invoked_subcommand == "extract-serialize-events"
+        or force_initialize_db
+    ):
+        logger.info("Initializing Drop database")
+        obj["engine"] = create_engine("sqlite:///drop.db")
+        if not database_exists(obj["engine"].url):  # Checks for the first time
+            create_database(obj["engine"].url)  # Create new DB
+            print(
+                "New Database Created: "
+                + str(database_exists(obj["engine"].url))
+            )  # Verifies if database is there or not.
+        else:
+            print("Database Already Exists")
+        Base.metadata.create_all(bind=obj["engine"])
+
+
+# LOGGING #
 
 
 @app.command()
@@ -177,6 +207,7 @@ def _post_process(file_path: Path) -> None:
 
 @app.command()
 def extract_serialize_events(
+    ctx: typer.Context,
     cities: List[str] = typer.Option(
         help="A list of cities in which the events would be contextualized to"
     ),
@@ -196,6 +227,7 @@ def extract_serialize_events(
     """
     Call parse_events and get
     """
+
     if ingestable_article_file:
         ingestable_article_file = Path(ingestable_article_file).absolute()
     else:
@@ -209,7 +241,8 @@ def extract_serialize_events(
     if not events:
         return
 
-    # 1. Send System prompt.
+    # 1. Send System prompt. 
+
     ai = AI()
     messages = ai.start(
         base_prompt_hoboken_girl(cities, date.strftime("%Y-%m-%d")),
@@ -229,12 +262,13 @@ def extract_serialize_events(
             event_obj = _parse_events(ai, messages[:1], event)
             if not event_obj:
                 # TODO: Log this in SQL as an error in processing as NoEventFound.
+                engine = ctx.obj["engine"]
                 add_event(
                     engine,
                     event=None,
                     original_text=event,
                     failure_reason="NoEventFunctionCallByAI",
-                    filename=ingestable_article_file,
+                    filename=ingestable_article_file.name,
                     version=version,
                 )
                 continue
@@ -257,25 +291,29 @@ def extract_serialize_events(
                 typer.echo(
                     "Autopilot is on. Processing all events without human intervention."
                 )
-            add_event(
-                engine,
-                event=event_obj,
-                original_text=event,
-                failure_reason=None,
-                filename=ingestable_article_file,
-                version=version,
-            )
+            engine = ctx.obj["engine"]
+            if event_obj.name not in element_names_already_seen:
+                add_event(
+                    engine,
+                    event=event_obj,
+                    original_text=event,
+                    failure_reason=None,
+                    filename=ingestable_article_file.name,
+                    version=version,
+                )
+            else:
+                logger.debug(
+                    f"Skipping {i}th event with name {event_obj.name} as it was already seen."
+                )
         except Exception as e:
-            # TODO: log into sqlite any caught errors for event.
-            import ipdb
 
-            ipdb.post_mortem()
+            engine = ctx.obj["engine"]
             id = add_event(
                 engine,
                 event=None,
                 original_text=event,
-                error_type=str(e),
-                filename=ingestable_article_file,
+                failure_reason=str(e),
+                filename=ingestable_article_file.name,
                 version=version,
             )
             logger.error(f"Error processing event {id}")
@@ -287,7 +325,8 @@ def extract_serialize_events(
                 return
             num_errors += 1
             continue
-        logger.debug(event_obj)
+    logger.info(f"Done processing all events with {num_errors} errors.")
+
 
 
 ALLOWED_FUNCTIONS = {

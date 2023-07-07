@@ -51,8 +51,8 @@ def add_event(
         event_dict = None
     try:
         event_table = ParsedEventTable(
-            name=event.name,
-            description=event.description,
+            name=event.name if event else None,
+            description=event.description if event else None,
             event_json=event_dict,
             original_event=original_text,
             failure_reason=failure_reason,
