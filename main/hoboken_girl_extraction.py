@@ -4,6 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 import re
 from typing import Dict, Generator, List, Optional
+from sqlalchemy import create_engine
 
 import click
 from colorama import Fore
@@ -27,6 +28,8 @@ from utils.prompt_utils import (
     hoboken_girl_event_function_param,
 )
 from model.types import Event, create_event
+from model.persistence_model import add_event
+from . import engine
 import logging
 
 
@@ -226,6 +229,14 @@ def extract_serialize_events(
             event_obj = _parse_events(ai, messages[:1], event)
             if not event_obj:
                 # TODO: Log this in SQL as an error in processing as NoEventFound.
+                add_event(
+                    engine,
+                    event=None,
+                    original_text=event,
+                    failure_reason="NoEventFunctionCallByAI",
+                    filename=ingestable_article_file,
+                    version=version,
+                )
                 continue
             if not autopilot:
                 typer.echo("Confirm is the event looks correct or edit it")
@@ -246,8 +257,28 @@ def extract_serialize_events(
                 typer.echo(
                     "Autopilot is on. Processing all events without human intervention."
                 )
-            # TODO: 3. Save the events
+            add_event(
+                engine,
+                event=event_obj,
+                original_text=event,
+                failure_reason=None,
+                filename=ingestable_article_file,
+                version=version,
+            )
         except Exception as e:
+            # TODO: log into sqlite any caught errors for event.
+            import ipdb
+
+            ipdb.post_mortem()
+            id = add_event(
+                engine,
+                event=None,
+                original_text=event,
+                error_type=str(e),
+                filename=ingestable_article_file,
+                version=version,
+            )
+            logger.error(f"Error processing event {id}")
             logger.exception(e)
             if num_errors > max_acceptable_errors:
                 typer.echo(
