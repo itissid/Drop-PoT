@@ -16,6 +16,7 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
     2. Extract exact street addresses from the event the best you can.
     3. Extract and convert ALL dates to YYYY-MM-DD format.
     4. Extract and convert ALL times to HH:MM format in the ET time zone.
+    5. Multiple start dates and times in the text are possible and must be stored comma separated: "2020-10-01,2020-10-02" or "19:45,20:01"
 
     Here are the instructions for extracting the per event fields from the text for the function call I will ask you to make:
     1. name: A short title of the event.

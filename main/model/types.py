@@ -114,3 +114,7 @@ def create_event(
         payment_mode=payment_mode,
         payment_details=payment_details,
     )
+
+
+def sort_alphabet_list_reverse(lst: List[str]) -> List[str]:
+    return sorted(lst, reverse=True)

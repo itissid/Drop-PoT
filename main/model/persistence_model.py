@@ -96,6 +96,33 @@ def get_max_id_by_version_and_filename(engine, version, filename):
     finally:
         session.close()
 
+# Generated via Copilot
+def get_num_events_by_version_and_filename(
+    engine, version: str, filename: str
+) -> int:
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        # Query the database for the number of events with the given version and filename
+        num_events = (
+            session.query(func.count(ParsedEventTable.id))
+            .filter(
+                ParsedEventTable.version == version,
+                ParsedEventTable.filename == filename,
+            )
+            .scalar()
+        )
+        return num_events
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Failed to retrieve the number of events from ParsedEventTable for version: {version} and filename: {filename}!"
+        )
+        logger.exception(e)
+    finally:
+        session.close()
+    return 0
+
 
 def get_column_by_version_and_filename(
     engine, column: str, version: str, filename: str

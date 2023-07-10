@@ -28,6 +28,7 @@ from model.types import Event, create_event
 from model.persistence_model import (
     add_event,
     get_column_by_version_and_filename,
+    get_num_events_by_version_and_filename,
     ParsedEventTable,
     Base,
 )
@@ -223,6 +224,7 @@ def extract_serialize_events(
     version: str = typer.Option(
         "v1", help="The version of the event extractor to use"
     ),
+    retry_only_errors: bool = False,
 ):
     """
     Call parse_events and get
@@ -236,12 +238,29 @@ def extract_serialize_events(
         return
     if not cities and type(cities) != list:
         raise ValueError("Cities are required and must be a list.")
-    autopilot = False
-    events = _event_gen(ingestable_article_file)
+    items = get_num_events_by_version_and_filename(
+        ctx.obj["engine"], version, ingestable_article_file.name
+    )
+    # A bit of sanity check.
+    if items > 0:
+        typer.echo(
+            f"There are already {items} events in the database for the {version} version and file {ingestable_article_file.name}"
+        )
+        if not would_you_like_to_continue():
+            return
+        else:
+            typer.echo("Duplicate events will be added to the database!")
+
+    if not retry_only_errors:
+        events = _event_gen(ingestable_article_file)
+    else:
+        # TODO: Fetch failed events from database and retry them.
+        pass
     if not events:
+        logger.warn("No events found. Exiting")
         return
 
-    # 1. Send System prompt. 
+    # 1. Send System prompt.
 
     ai = AI()
     messages = ai.start(
@@ -266,6 +285,7 @@ def extract_serialize_events(
         )
     )
 
+    autopilot = False
     for i, event in enumerate(events):
         # 2. Send the remaining prompts
         try:
@@ -287,9 +307,6 @@ def extract_serialize_events(
                 typer.echo(
                     f"{_optionally_format_colorama('Raw Event text', True, Fore.GREEN)}'\n'{event}"
                 )
-                # import ipdb
-
-                # ipdb.set_trace()
                 edit_dict(asdict(event_obj))
                 # The user may want to turn on autopilot after a few events.
                 if go_autopilot():
@@ -299,7 +316,7 @@ def extract_serialize_events(
                     autopilot = True
             else:
                 typer.echo(
-                    "Autopilot is on. Processing all events without human intervention."
+                    f"Autopilot is on. Processing  event {_optionally_format_colorama(str(i+1), True, Fore.GREEN)} without human intervention."
                 )
             engine = ctx.obj["engine"]
             if event_obj.name not in element_names_already_seen:
@@ -316,7 +333,6 @@ def extract_serialize_events(
                     f"Skipping {i}th event with name {event_obj.name} as it was already seen."
                 )
         except Exception as e:
-
             engine = ctx.obj["engine"]
             id = add_event(
                 engine,
@@ -336,7 +352,6 @@ def extract_serialize_events(
             num_errors += 1
             continue
     logger.info(f"Done processing all events with {num_errors} errors.")
-
 
 
 ALLOWED_FUNCTIONS = {
