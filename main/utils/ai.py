@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 
 import logging
+from typing import List
 
 import openai
 
@@ -156,3 +157,38 @@ class AI:
 )
 def completion_with_backoff(**kwargs):
     return openai.ChatCompletion.create(**kwargs)
+
+
+class EmbeddingSearch:
+    def __init__(self, model: str = "text-embedding-ada-002"):
+        try:
+            openai.Model.retrieve(model)
+            self.model = model
+        except openai.InvalidRequestError as e:
+            logger.warn(
+                f"Embedding Model {model} not available for provided API key. "
+            )
+            logger.exception(e)
+            raise e
+
+    def fetch_embeddings(self, lsts: List[str]):
+        # TODO add the user parameter to the request to monitor any misuse.
+        _fetch_embeddings(model=self.model, input=lsts)
+
+
+@retry(
+    wait=wait_random_exponential(min=1, max=60),
+    stop=stop_after_attempt(10),
+    retry=retry_if_exception_type(
+        (
+            openai.error.RateLimitError,
+            openai.error.APIConnectionError,
+            openai.error.ServiceUnavailableError,
+            openai.error.APIError,
+        )
+    ),
+)
+def _fetch_embeddings(**kwargs):
+    return openai.Embeddings.create(**kwargs)
+
+

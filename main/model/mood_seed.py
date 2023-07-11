@@ -1,3 +1,9 @@
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List
+
+from dataclasses_json import dataclass_json
+
 PROMPT = """
 Give me a comprehensive list of Human "moods" contextual to getting out and about in your local neighborhood at different times of the day and weekday and weekends when one has free time. I define Mood as primarily an emotion that one feels and not necessarily a verb or an action.  
 
@@ -13,6 +19,8 @@ Ideally the things you want also enrich our moods, but we can't always find that
 Lastly for each Mood I want you to try and tell me some why do you think its a mood in popular culture. Quote some references or web links to corroborate.
 """
 
+
+
 GEN_Z_HOBOKEN = [
     {
         "MOOD": "Music & Culture",
@@ -23,7 +31,7 @@ GEN_Z_HOBOKEN = [
                     "Live music at Maxwell's Tavern in Hoboken",
                     "Groove on Grove in Jersey City",
                 ],
-                "REASONING": "Just like their NYC counterparts, Gen Z in Hoboken and Jersey City enjoy live music experiences. Local venues and events offer a variety of such opportunities. (Ref: https://www.rollingstone.com/pro/features/inside-gen-zs-music-streaming-habits-1042887/)",
+                "REASONING": "Just like their NYC counterparts, Gen Z in Hoboken and Jersey City enjoy live music experiences. Local venues and events offer a variety of such opportunities. ",
             },
             {
                 "SUB_MOOD": "Cultural Exploration",
@@ -31,7 +39,7 @@ GEN_Z_HOBOKEN = [
                     "Art shows at Hoboken Historical Museum",
                     "Visiting Mana Contemporary in Jersey City",
                 ],
-                "REASONING": "Hoboken and Jersey City are rich in culture and arts. Gen Z takes interest in exploring local art scenes and historical places. (Ref: https://www.nytimes.com/2019/08/06/theater/gen-z-broadway.html)",
+                "REASONING": "Hoboken and Jersey City are rich in culture and arts. Gen Z takes interest in exploring local art scenes and historical places. ",
             },
         ],
     },
@@ -44,7 +52,7 @@ GEN_Z_HOBOKEN = [
                     "Coffee at Bwe Kafe in Hoboken",
                     "Picnic at Liberty State Park in Jersey City",
                 ],
-                "REASONING": "Both Hoboken and Jersey City provide ample spaces for Gen Z to hang out and socialize in a relaxed atmosphere. (Ref: https://www.adweek.com/brand-marketing/gen-z-boomers-infographic/)",
+                "REASONING": "Both Hoboken and Jersey City provide ample spaces for Gen Z to hang out and socialize in a relaxed atmosphere. ",
             },
             {
                 "SUB_MOOD": "Career Networking",
@@ -52,7 +60,7 @@ GEN_Z_HOBOKEN = [
                     "Meetups at Stevens Institute of Technology",
                     "Career fairs in Jersey City University",
                 ],
-                "REASONING": "With prominent educational institutions in both cities, Gen Z individuals have opportunities to network and attend professional events. (Ref: https://www.inc.com/john-hall/how-gen-z-is-changing-these-3-industries.html)",
+                "REASONING": "With prominent educational institutions in both cities, Gen Z individuals have opportunities to network and attend professional events. ",
             },
         ],
     },
@@ -65,7 +73,7 @@ GEN_Z_HOBOKEN = [
                     "Visiting the Hoboken Historical Museum",
                     "Attending art shows at the hob'art cooperative gallery",
                 ],
-                "REASONING": "Gen Z is drawn to creativity and self-expression, with many interested in visual arts. Visiting art galleries and museums allows them to engage with diverse perspectives and ideas. (Ref: https://www.cbsnews.com/news/gen-z-is-redefining-the-art-world-by-buying-more-art-than-any-other-generation/)",
+                "REASONING": "Gen Z is drawn to creativity and self-expression, with many interested in visual arts. Visiting art galleries and museums allows them to engage with diverse perspectives and ideas. ",
             },
             {
                 "SUB_MOOD": "Music Vibes",
@@ -73,7 +81,7 @@ GEN_Z_HOBOKEN = [
                     "Live music at Maxwell's Tavern",
                     "Record shopping at Tunes Hoboken",
                 ],
-                "REASONING": "Music is integral to Gen Z's cultural experiences. They enjoy live performances and have reignited the trend of buying physical records. (Ref: https://www.billboard.com/articles/business/record-labels/8544114/why-gen-z-cassette-vinyl-boom)",
+                "REASONING": "Music is integral to Gen Z's cultural experiences. They enjoy live performances and have reignited the trend of buying physical records. ",
             },
         ],
     },
@@ -86,7 +94,7 @@ GEN_Z_HOBOKEN = [
                     "E-sports events at local gaming lounges",
                     "Game nights with friends",
                 ],
-                "REASONING": "Gen Z has grown up with video games as a mainstream form of entertainment and are often attracted to social and competitive gaming scenes. (Ref: https://www.thedrum.com/opinion/2021/04/19/gen-z-gaming-and-the-evolution-influencer-marketing)",
+                "REASONING": "Gen Z has grown up with video games as a mainstream form of entertainment and are often attracted to social and competitive gaming scenes. ",
             },
             {
                 "SUB_MOOD": "Streaming Culture",
@@ -94,7 +102,7 @@ GEN_Z_HOBOKEN = [
                     "Netflix parties with friends",
                     "Sharing YouTube playlists",
                 ],
-                "REASONING": "Streaming platforms are the go-to source for Gen Z's entertainment, whether it's watching movies, shows, or sharing music. (Ref: https://variety.com/2021/digital/news/gen-z-streaming-tv-viewership-deloitte-1234943820/)",
+                "REASONING": "Streaming platforms are the go-to source for Gen Z's entertainment, whether it's watching movies, shows, or sharing music. ",
             },
         ],
     },
@@ -107,7 +115,7 @@ GEN_Z_HOBOKEN = [
                     "Picnic at Pier A Park",
                     "Kayaking at Hoboken Cove Boathouse",
                 ],
-                "REASONING": "Gen Z appreciates the benefits of spending time outdoors. Whether it's relaxing in a park or participating in outdoor activities, they value these experiences. (Ref: https://www.forbes.com/sites/forbesagencycouncil/2020/07/16/how-gen-z-is-changing-the-travel-industry/?sh=2e4b696a1d9e)",
+                "REASONING": "Gen Z appreciates the benefits of spending time outdoors. Whether it's relaxing in a park or participating in outdoor activities, they value these experiences. ",
             },
             {
                 "SUB_MOOD": "Urban Exploration",
@@ -115,7 +123,7 @@ GEN_Z_HOBOKEN = [
                     "Exploring the Hoboken Waterfront Walkway",
                     "Cycling through Hoboken's historic districts",
                 ],
-                "REASONING": "This generation enjoys exploring their city, discovering new spots, and experiencing the unique character of their local neighborhoods. (Ref: https://www.ipsos.com/en-us/news-polls/urban-planet-ipsos-cities)",
+                "REASONING": "This generation enjoys exploring their city, discovering new spots, and experiencing the unique character of their local neighborhoods. ",
             },
         ],
     },
@@ -128,7 +136,7 @@ GEN_Z_HOBOKEN = [
                     "Biking on the Hudson River Waterfront Walkway",
                     "Exploring murals in Jersey City",
                 ],
-                "REASONING": "Gen Z's curiosity extends to exploring their hometowns of Hoboken and Jersey City. From biking along scenic routes to exploring vibrant street art, there's plenty to discover. (Ref: https://www.visittheusa.com/trip/gen-z-travel-trends)",
+                "REASONING": "Gen Z's curiosity extends to exploring their hometowns of Hoboken and Jersey City. From biking along scenic routes to exploring vibrant street art, there's plenty to discover. ",
             },
             {
                 "SUB_MOOD": "Thrill-Seeking",
@@ -136,7 +144,7 @@ GEN_Z_HOBOKEN = [
                     "Kayaking on the Hudson",
                     "Escape Room challenges in Jersey City",
                 ],
-                "REASONING": "Gen Z seeks adventure and thrills, even within city bounds. Activities like kayaking and escape rooms offer an exciting break from routine. (Ref: https://www.gensler.com/research-insight/blog/gen-z-wants-experiences-not-things)",
+                "REASONING": "Gen Z seeks adventure and thrills, even within city bounds. Activities like kayaking and escape rooms offer an exciting break from routine. ",
             },
         ],
     },
@@ -149,7 +157,7 @@ GEN_Z_HOBOKEN = [
                     "Workouts at Crunch Fitness Hoboken",
                     "Training at Base NJ in Jersey City",
                 ],
-                "REASONING": "Fitness is a top priority for Gen Z. They enjoy working out, staying fit, and maintaining a healthy lifestyle. The presence of fitness centers across Hoboken and Jersey City cater to this need. (Ref: https://www.businessinsider.in/business/news/gen-z-loves-luxury-fitness-and-their-physical-and-mental-well-being-is-starting-to-have-an-impact-on-their-shopping-habits/articleshow/71114003.cms)",
+                "REASONING": "Fitness is a top priority for Gen Z. They enjoy working out, staying fit, and maintaining a healthy lifestyle. The presence of fitness centers across Hoboken and Jersey City cater to this need. ",
             },
             {
                 "SUB_MOOD": "Yoga & Meditation",
@@ -157,7 +165,7 @@ GEN_Z_HOBOKEN = [
                     "Yoga classes at Urban Souls Hoboken",
                     "Meditation sessions at Jivamukti Yoga Jersey City",
                 ],
-                "REASONING": "Gen Z places high emphasis on mental wellness. They often participate in yoga and meditation sessions to reduce stress and promote mindfulness. (Ref: https://www.wellandgood.com/gen-z-wellness-trends/)",
+                "REASONING": "Gen Z places high emphasis on mental wellness. They often participate in yoga and meditation sessions to reduce stress and promote mindfulness. ",
             },
         ],
     },
@@ -170,7 +178,7 @@ GEN_Z_HOBOKEN = [
                     "Trying Italian at Leo's Grandevous in Hoboken",
                     "Sampling seafood at Surf City in Jersey City",
                 ],
-                "REASONING": "Gen Z is open to trying new cuisines and has a love for food exploration. The culinary diversity of Hoboken and Jersey City provides endless opportunities. (Ref: https://www.fooddive.com/news/gen-zs-palate-is-diverse-digital-and-prone-to-change/563641/)",
+                "REASONING": "Gen Z is open to trying new cuisines and has a love for food exploration. The culinary diversity of Hoboken and Jersey City provides endless opportunities. ",
             },
             {
                 "SUB_MOOD": "Coffee Culture",
@@ -178,7 +186,7 @@ GEN_Z_HOBOKEN = [
                     "Brew tasting at Black Rail Coffee in Hoboken",
                     "Chilling at ModCup Coffee in Jersey City",
                 ],
-                "REASONING": "Gen Z has embraced coffee culture, often visiting local coffee shops not just for a caffeine fix, but for socializing and even working on projects. (Ref: https://www.foodandwine.com/news/coffee/gen-z-millennials-coffee-consumption)",
+                "REASONING": "Gen Z has embraced coffee culture, often visiting local coffee shops not just for a caffeine fix, but for socializing and even working on projects. ",
             },
         ],
     },
@@ -191,7 +199,7 @@ GEN_Z_HOBOKEN = [
                     "Volunteering at Hoboken Green Team",
                     "Participating in community clean-ups in Jersey City",
                 ],
-                "REASONING": "Gen Z is deeply concerned about the environment and climate change. They participate in eco-friendly activities and often volunteer for causes they care about. (Ref: https://www.treehugger.com/survey-finds-gen-z-is-ready-to-lead-on-climate-action-4858803)",
+                "REASONING": "Gen Z is deeply concerned about the environment and climate change. They participate in eco-friendly activities and often volunteer for causes they care about. ",
             },
             {
                 "SUB_MOOD": "Sustainable Shopping",
@@ -199,7 +207,7 @@ GEN_Z_HOBOKEN = [
                     "Thrifting at Hoboken Vintage",
                     "Buying local produce at Jersey City Farmers' Market",
                 ],
-                "REASONING": "This generation prefers to shop sustainably, supporting local businesses, thrift stores, and farmers' markets over fast fashion and industrial supermarkets. (Ref: https://sustainablebrands.com/read/marketing-and-comms/gen-z-expects-brands-to-be-authentic-about-sustainability)",
+                "REASONING": "This generation prefers to shop sustainably, supporting local businesses, thrift stores, and farmers' markets over fast fashion and industrial supermarkets. ",
             },
         ],
     },
@@ -212,7 +220,7 @@ GEN_Z_HOBOKEN = [
                     "Participating in Hoboken Tech Meetup",
                     "Attending Jersey City Tech events",
                 ],
-                "REASONING": "Being digital natives, Gen Z is often enthusiastic about technology and innovation. They love participating in tech events, meetups, and start-up events to connect and learn. (Ref: https://builtin.com/gen-z)",
+                "REASONING": "Being digital natives, Gen Z is often enthusiastic about technology and innovation. They love participating in tech events, meetups, and start-up events to connect and learn. ",
             },
             {
                 "SUB_MOOD": "Maker Movement",
@@ -220,7 +228,7 @@ GEN_Z_HOBOKEN = [
                     "3D Printing workshops at Hoboken Public Library",
                     "DIY events at MakerBar in Jersey City",
                 ],
-                "REASONING": "Gen Z is a generation of creators. They're drawn to the maker movement and enjoy activities that involve creating and innovating, whether it's 3D printing or DIY projects. (Ref: https://www.psfk.com/2017/10/why-gen-zs-maker-movement-will-impact-our-future.html)",
+                "REASONING": "Gen Z is a generation of creators. They're drawn to the maker movement and enjoy activities that involve creating and innovating, whether it's 3D printing or DIY projects. ",
             },
         ],
     },
@@ -233,7 +241,7 @@ GEN_Z_HOBOKEN = [
                     "Courses at Hudson County Community College",
                     "Online courses at the Hoboken Public Library",
                 ],
-                "REASONING": "Gen Z believes in lifelong learning. They continually seek to educate themselves, both in academic and non-academic spheres. (Ref: https://elearningindustry.com/gen-z-learning-styles-6-ways-adapt)",
+                "REASONING": "Gen Z believes in lifelong learning. They continually seek to educate themselves, both in academic and non-academic spheres. ",
             },
             {
                 "SUB_MOOD": "Career Development",
@@ -241,7 +249,7 @@ GEN_Z_HOBOKEN = [
                     "Career coaching at Jersey City Employment and Training Program",
                     "Internships at Hoboken startups",
                 ],
-                "REASONING": "Gen Z is career-focused and looks for opportunities to develop their professional skills. This includes seeking internships, career coaching, and networking events. (Ref: https://www.randstadusa.com/workforce360/workforce-insights/gen-z-statistics/604/)",
+                "REASONING": "Gen Z is career-focused and looks for opportunities to develop their professional skills. This includes seeking internships, career coaching, and networking events. ",
             },
         ],
     },
@@ -254,7 +262,7 @@ GEN_Z_HOBOKEN = [
                     "Helping at Hoboken Shelter",
                     "Volunteering at AngelaCARES in Jersey City",
                 ],
-                "REASONING": "Gen Z feels strongly about giving back to their community. They often participate in local volunteer work and community service. (Ref: https://www.insidehighered.com/news/2019/11/25/gen-z-students-are-more-interested-volunteering-peers-were)",
+                "REASONING": "Gen Z feels strongly about giving back to their community. They often participate in local volunteer work and community service. ",
             },
             {
                 "SUB_MOOD": "Social Advocacy",
@@ -262,12 +270,11 @@ GEN_Z_HOBOKEN = [
                     "Participating in climate marches in Hoboken",
                     "Attending social justice rallies in Jersey City",
                 ],
-                "REASONING": "This generation is not afraid to voice their opinions on social issues. They advocate for causes they believe in, participating in rallies, marches, and advocacy events. (Ref: https://www.pewsocialtrends.org/essay/on-the-cusp-of-adulthood-and-facing-an-uncertain-future-what-we-know-about-gen-z-so-far/)",
+                "REASONING": "This generation is not afraid to voice their opinions on social issues. They advocate for causes they believe in, participating in rallies, marches, and advocacy events. ",
             },
         ],
     },
 ]
-
 
 MILLENIALS = [
     {
@@ -508,6 +515,7 @@ MILLENIALS = [
         ],
     },
 ]
+
 GEN_Z = [
     {
         "MOOD": "Digital Detox",
@@ -684,7 +692,7 @@ GEN_Z = [
                     "Fashion Shows",
                     "Trend-Setting Events",
                 ],
-                "REASONING": "Gen Z individuals are digital natives who use social media not just for communication but to keep up with the latest trends. They enjoy sharing, exploring and engaging with the newest trends whether in fashion, culture, or digital space. (Ref: https://www.businessinsider.com/gen-z-defining-themselves-through-memes-2020-2)",
+                "REASONING": "Gen Z individuals are digital natives who use social media not just for communication but to keep up with the latest trends. They enjoy sharing, exploring and engaging with the newest trends whether in fashion, culture, or digital space. ",
             },
             {
                 "SUB_MOOD": "Meme Culture",
@@ -692,7 +700,7 @@ GEN_Z = [
                     "Internet Culture Forums",
                     "Meme-Related Gatherings",
                 ],
-                "REASONING": "Memes are a significant part of Gen Z's online language. They use memes as a form of expression, communication, and humor, thus participating in events or online platforms revolving around memes. (Ref: https://www.warc.com/newsandopinion/news/why-gen-z-loves-memes/43191)",
+                "REASONING": "Memes are a significant part of Gen Z's online language. They use memes as a form of expression, communication, and humor, thus participating in events or online platforms revolving around memes. ",
             },
         ],
     },
@@ -702,7 +710,7 @@ GEN_Z = [
             {
                 "SUB_MOOD": "Social FOMO",
                 "PLACE_OR_ACTIVITY": ["Parties", "Concerts", "Festivals"],
-                "REASONING": "Gen Z individuals have grown up in a hyper-connected world, causing a fear of missing out on social events and experiences. Social media plays a big role in this as they are constantly exposed to their friends and influencers attending these events. (Ref: https://www.forbes.com/sites/forbesagencycouncil/2020/01/27/understanding-gen-z-the-fomo-generation/?sh=5e706d466f5a)",
+                "REASONING": "Gen Z individuals have grown up in a hyper-connected world, causing a fear of missing out on social events and experiences. Social media plays a big role in this as they are constantly exposed to their friends and influencers attending these events. ",
             },
             {
                 "SUB_MOOD": "Professional FOMO",
@@ -711,7 +719,7 @@ GEN_Z = [
                     "Networking Events",
                     "Online Professional Webinars",
                 ],
-                "REASONING": "Gen Z is known for being career-focused from a young age. Their FOMO extends to professional opportunities, always on the lookout for the next big thing that could give them a competitive edge. (Ref: https://www.gallup.com/workplace/283985/fomo-fear-missing-opportunity.aspx)",
+                "REASONING": "Gen Z is known for being career-focused from a young age. Their FOMO extends to professional opportunities, always on the lookout for the next big thing that could give them a competitive edge. ",
             },
         ],
     },
@@ -728,7 +736,7 @@ GEN_Z_NYC = [
                     "Williamsburg street markets",
                     "Brooklyn art galleries",
                 ],
-                "REASONING": "Gen Z New Yorkers are always in tune with the latest trends and enjoy attending local cultural and fashion events. They're known for their interest in street fashion, art, and indie music, and use these experiences to express themselves online. (Ref: https://www.businessinsider.com/gen-z-defining-themselves-through-memes-2020-2)",
+                "REASONING": "Gen Z New Yorkers are always in tune with the latest trends and enjoy attending local cultural and fashion events. They're known for their interest in street fashion, art, and indie music, and use these experiences to express themselves online. ",
             },
             {
                 "SUB_MOOD": "Meme Culture",
@@ -736,7 +744,7 @@ GEN_Z_NYC = [
                     "Comedy Cellar stand-ups",
                     "Meme-themed NYC meetups",
                 ],
-                "REASONING": "Memes have become a significant part of Gen Z's culture and language. In NYC, this might mean attending events or performances that are known for their humor and meme-generating potential. (Ref: https://www.warc.com/newsandopinion/news/why-gen-z-loves-memes/43191)",
+                "REASONING": "Memes have become a significant part of Gen Z's culture and language. In NYC, this might mean attending events or performances that are known for their humor and meme-generating potential. ",
             },
         ],
     },
@@ -750,7 +758,7 @@ GEN_Z_NYC = [
                     "Rooftop parties in Manhattan",
                     "Williamsburg food festivals",
                 ],
-                "REASONING": "Living in a city like New York, which is always bustling with events, Gen Z's FOMO is even more intensified. From music festivals to food fairs, there's always something happening. (Ref: https://www.forbes.com/sites/forbesagencycouncil/2020/01/27/understanding-gen-z-the-fomo-generation/?sh=5e706d466f5a)",
+                "REASONING": "Living in a city like New York, which is always bustling with events, Gen Z's FOMO is even more intensified. From music festivals to food fairs, there's always something happening. ",
             },
             {
                 "SUB_MOOD": "Professional FOMO",
@@ -759,7 +767,7 @@ GEN_Z_NYC = [
                     "Tech conferences at Javits Center",
                     "Internship fairs at NYU",
                 ],
-                "REASONING": "New York City is a hub for opportunities, particularly in industries like tech, fashion, and finance. Gen Z individuals who are eager to get a head start in their careers often find themselves experiencing FOMO over professional opportunities. (Ref: https://www.gallup.com/workplace/283985/fomo-fear-missing-opportunity.aspx)",
+                "REASONING": "New York City is a hub for opportunities, particularly in industries like tech, fashion, and finance. Gen Z individuals who are eager to get a head start in their careers often find themselves experiencing FOMO over professional opportunities. ",
             },
         ],
     },
@@ -772,7 +780,7 @@ GEN_Z_NYC = [
                     "Climate rallies at Central Park",
                     "Sustainability workshops at Brooklyn Grange Farm",
                 ],
-                "REASONING": "Gen Z individuals are particularly passionate about issues such as climate change. In NYC, they might be found attending or organizing climate rallies, or participating in sustainable living workshops. (Ref: https://www.nytimes.com/2019/09/21/nyregion/youth-climate-strike-nyc.html)",
+                "REASONING": "Gen Z individuals are particularly passionate about issues such as climate change. In NYC, they might be found attending or organizing climate rallies, or participating in sustainable living workshops. ",
             },
             {
                 "SUB_MOOD": "Social Justice Activism",
@@ -780,7 +788,7 @@ GEN_Z_NYC = [
                     "BLM protests at Times Square",
                     "Pride parades in Manhattan",
                 ],
-                "REASONING": "Social justice issues are a key concern for Gen Z. In a diverse city like New York, this often translates into participation in protests, marches, and parades supporting various social causes. (Ref: https://www.npr.org/2020/06/03/867413068/generation-z-teens-explain-the-fight-for-racial-equality)",
+                "REASONING": "Social justice issues are a key concern for Gen Z. In a diverse city like New York, this often translates into participation in protests, marches, and parades supporting various social causes. ",
             },
         ],
     },
@@ -793,7 +801,7 @@ GEN_Z_NYC = [
                     "Street Art tours in Bushwick",
                     "Open mic nights at Nuyorican Poets Cafe",
                 ],
-                "REASONING": "Gen Z is known for their creativity, often expressing themselves through various art forms. In a city like NYC, there are numerous opportunities to explore and share their talent. (Ref: https://www.adweek.com/brand-marketing/gen-z-creativity-1632544/)",
+                "REASONING": "Gen Z is known for their creativity, often expressing themselves through various art forms. In a city like NYC, there are numerous opportunities to explore and share their talent. ",
             },
             {
                 "SUB_MOOD": "Content Creation",
@@ -801,7 +809,7 @@ GEN_Z_NYC = [
                     "Vlogging in Times Square",
                     "Photowalks in SoHo",
                 ],
-                "REASONING": "Content creation is a popular pastime for many Gen Z individuals. In NYC, the vibrant city life provides countless opportunities for interesting and engaging content. (Ref: https://www.marketingdive.com/news/study-95-of-gen-z-uses-youtube-50-cant-live-without-it/443605/)",
+                "REASONING": "Content creation is a popular pastime for many Gen Z individuals. In NYC, the vibrant city life provides countless opportunities for interesting and engaging content. ",
             },
         ],
     },
@@ -814,7 +822,7 @@ GEN_Z_NYC = [
                     "Yoga in Bryant Park",
                     "Running along the Hudson River",
                 ],
-                "REASONING": "Despite their busy lives, Gen Z values their physical health, often incorporating regular exercise and outdoor activities into their routine. (Ref: https://www.healthline.com/health-news/gen-z-more-likely-to-report-mental-health-concerns)",
+                "REASONING": "Despite their busy lives, Gen Z values their physical health, often incorporating regular exercise and outdoor activities into their routine. ",
             },
             {
                 "SUB_MOOD": "Mental Health",
@@ -822,7 +830,7 @@ GEN_Z_NYC = [
                     "Meditation workshops at MNDFL",
                     "Self-care Sundays at home",
                 ],
-                "REASONING": "Mental health awareness is crucial for Gen Z, and they value activities that help reduce stress and promote mindfulness. (Ref: https://www.insider.com/gen-z-prioritizes-mental-health-over-physical-wellness-2020-10)",
+                "REASONING": "Mental health awareness is crucial for Gen Z, and they value activities that help reduce stress and promote mindfulness. ",
             },
         ],
     },
@@ -835,7 +843,7 @@ GEN_Z_NYC = [
                     "Tech meetups in Silicon Alley",
                     "Internship fairs at Columbia University",
                 ],
-                "REASONING": "Gen Z is serious about their future and strives for professional growth. They often attend meetups, seminars, and fairs to network and learn. (Ref: https://www.forbes.com/sites/theyec/2019/08/14/how-to-attract-retain-and-engage-gen-z-employees/?sh=3f5b8fa01ee5)",
+                "REASONING": "Gen Z is serious about their future and strives for professional growth. They often attend meetups, seminars, and fairs to network and learn. ",
             },
             {
                 "SUB_MOOD": "Personal Growth",
@@ -843,7 +851,7 @@ GEN_Z_NYC = [
                     "Personal development workshops at General Assembly",
                     "Language exchange meetups in East Village",
                 ],
-                "REASONING": "Gen Z values personal growth and strives for self-improvement. They often seek out learning opportunities that can help broaden their horizons. (Ref: https://www.pewsocialtrends.org/essay/on-the-cusp-of-adulthood-and-facing-an-uncertain-future-what-we-know-about-gen-z-so-far/)",
+                "REASONING": "Gen Z values personal growth and strives for self-improvement. They often seek out learning opportunities that can help broaden their horizons. ",
             },
         ],
     },
@@ -856,7 +864,7 @@ GEN_Z_NYC = [
                     "Hiking in the Hudson Valley",
                     "Picnicking in Central Park",
                 ],
-                "REASONING": "Even though Gen Z is the digital generation, they value time spent away from screens, particularly in natural settings. (Ref: https://www.cnn.com/2020/02/14/tech/digital-detox-scn/index.html)",
+                "REASONING": "Even though Gen Z is the digital generation, they value time spent away from screens, particularly in natural settings. ",
             },
             {
                 "SUB_MOOD": "Mindful Living",
@@ -864,7 +872,7 @@ GEN_Z_NYC = [
                     "Meditation at the Rubin Museum",
                     "Pottery classes in Greenwich Village",
                 ],
-                "REASONING": "Gen Z individuals are increasingly turning to mindfulness practices and hobbies that allow them to unplug and relax. (Ref: https://www.forbes.com/sites/christinecarter/2020/01/24/why-gen-z-loves-this-ugly-word/?sh=4e444fbf2cfb)",
+                "REASONING": "Gen Z individuals are increasingly turning to mindfulness practices and hobbies that allow them to unplug and relax. ",
             },
         ],
     },
@@ -877,7 +885,7 @@ GEN_Z_NYC = [
                     "Ethiopian food in Harlem",
                     "Korean BBQ in K-Town",
                 ],
-                "REASONING": "Gen Z is adventurous and open to trying new things, including different cuisines. NYC, being a culinary melting pot, provides plenty of opportunities for this. (Ref: https://www.fooddive.com/news/gen-z-prefer-diverse-foods-show-allegiance-to-personal-beliefs-in-purchase/569122/)",
+                "REASONING": "Gen Z is adventurous and open to trying new things, including different cuisines. NYC, being a culinary melting pot, provides plenty of opportunities for this. ",
             },
             {
                 "SUB_MOOD": "Foodie Culture",
@@ -885,7 +893,7 @@ GEN_Z_NYC = [
                     "Food photography at Smorgasburg",
                     "Dessert tasting at Dominique Ansel Bakery",
                 ],
-                "REASONING": "Foodie culture is big with Gen Z. They love exploring trendy spots, tasting unique dishes, and of course, posting about it on social media. (Ref: https://www.qsrmagazine.com/consumer-trends/understanding-gen-zs-influence-foodservice-industry)",
+                "REASONING": "Foodie culture is big with Gen Z. They love exploring trendy spots, tasting unique dishes, and of course, posting about it on social media. ",
             },
         ],
     },
@@ -898,7 +906,7 @@ GEN_Z_NYC = [
                     "Spin class at SoulCycle",
                     "CrossFit in the Lower East Side",
                 ],
-                "REASONING": "Fitness culture is big with Gen Z, often tied in with their preference for athleisure fashion. They value activities that help them stay fit and healthy. (Ref: https://www.businessoffashion.com/articles/intelligence/the-future-of-athleisure)",
+                "REASONING": "Fitness culture is big with Gen Z, often tied in with their preference for athleisure fashion. They value activities that help them stay fit and healthy. ",
             },
             {
                 "SUB_MOOD": "Casual & Comfortable",
@@ -906,7 +914,7 @@ GEN_Z_NYC = [
                     "Shopping at Lululemon",
                     "Cafe hangouts in athleisure wear",
                 ],
-                "REASONING": "Gen Z values comfort and often prefers casual clothing like athleisure for regular outings, enhancing the whole 'casual & comfortable' vibe of their mood. (Ref: https://www.voguebusiness.com/companies/gen-z-fitness-athleisure-lululemon-gymshark)",
+                "REASONING": "Gen Z values comfort and often prefers casual clothing like athleisure for regular outings, enhancing the whole 'casual & comfortable' vibe of their mood. ",
             },
         ],
     },
@@ -919,7 +927,7 @@ GEN_Z_NYC = [
                     "Music festivals at Governors Island",
                     "Concerts at Madison Square Garden",
                 ],
-                "REASONING": "Music is a crucial part of Gen Z's life, and they often participate in concerts and music festivals to experience it live. NYC, being a cultural hub, provides ample opportunities for such experiences. (Ref: https://www.rollingstone.com/pro/features/inside-gen-zs-music-streaming-habits-1042887/)",
+                "REASONING": "Music is a crucial part of Gen Z's life, and they often participate in concerts and music festivals to experience it live. NYC, being a cultural hub, provides ample opportunities for such experiences. ",
             },
             {
                 "SUB_MOOD": "Cultural Exploration",
@@ -927,7 +935,7 @@ GEN_Z_NYC = [
                     "Visit to MoMA",
                     "Broadway show in Theater District",
                 ],
-                "REASONING": "Gen Z is keen on understanding and appreciating diverse cultures. In NYC, they often engage in activities such as visiting museums or watching Broadway shows. (Ref: https://www.nytimes.com/2019/08/06/theater/gen-z-broadway.html)",
+                "REASONING": "Gen Z is keen on understanding and appreciating diverse cultures. In NYC, they often engage in activities such as visiting museums or watching Broadway shows. ",
             },
         ],
     },
@@ -940,7 +948,7 @@ GEN_Z_NYC = [
                     "Cafes in Williamsburg",
                     "Picnic at Prospect Park",
                 ],
-                "REASONING": "Gen Z values face-to-face social interactions and often arranges chill hangouts with friends. Cafes, parks, and similar spaces provide a perfect setting. (Ref: https://www.adweek.com/brand-marketing/gen-z-boomers-infographic/)",
+                "REASONING": "Gen Z values face-to-face social interactions and often arranges chill hangouts with friends. Cafes, parks, and similar spaces provide a perfect setting. ",
             },
             {
                 "SUB_MOOD": "Career Networking",
@@ -948,7 +956,7 @@ GEN_Z_NYC = [
                     "Networking events at WeWork",
                     "Industry talks at NYU",
                 ],
-                "REASONING": "As they step into their professional lives, Gen Z recognizes the importance of networking. They often attend industry events and talks to expand their professional circle. (Ref: https://www.inc.com/john-hall/how-gen-z-is-changing-these-3-industries.html)",
+                "REASONING": "As they step into their professional lives, Gen Z recognizes the importance of networking. They often attend industry events and talks to expand their professional circle. ",
             },
         ],
     },
@@ -961,7 +969,7 @@ GEN_Z_NYC = [
                     "Exploring street art in Lower East Side",
                     "Rooftop views from Top of the Rock",
                 ],
-                "REASONING": "Gen Z loves exploring their city, uncovering hidden gems, and soaking in the urban vibe. NYC, with its diverse cityscape, is a playground for such exploration. (Ref: https://www.visittheusa.com/trip/gen-z-travel-trends)",
+                "REASONING": "Gen Z loves exploring their city, uncovering hidden gems, and soaking in the urban vibe. NYC, with its diverse cityscape, is a playground for such exploration. ",
             },
             {
                 "SUB_MOOD": "Thrill-Seeking",
@@ -969,7 +977,7 @@ GEN_Z_NYC = [
                     "Rollerblading in Central Park",
                     "Indoor rock climbing at Brooklyn Boulders",
                 ],
-                "REASONING": "Gen Z seeks thrills and adventures. They often participate in fun, adrenaline-pumping activities within their city. (Ref: https://www.gensler.com/research-insight/blog/gen-z-wants-experiences-not-things)",
+                "REASONING": "Gen Z seeks thrills and adventures. They often participate in fun, adrenaline-pumping activities within their city. ",
             },
         ],
     },

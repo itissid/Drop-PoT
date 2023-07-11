@@ -32,6 +32,11 @@ from model.persistence_model import (
     ParsedEventTable,
     Base,
 )
+from commands.embedding_commands import (
+    index_events,
+    index_moods,
+    demo_retrieval,
+)
 import click
 from sqlalchemy_utils import database_exists, create_database
 
@@ -78,22 +83,35 @@ def logging_setup(
     click.get_current_context().obj = {}
 
     obj = click.get_current_context().obj
+
     if (
         ctx.invoked_subcommand == "extract-serialize-events"
         or force_initialize_db
     ):
         logger.info("Initializing Drop database")
-        obj["engine"] = create_engine("sqlite:///drop.db")
-        if not database_exists(obj["engine"].url):  # Checks for the first time
-            create_database(obj["engine"].url)  # Create new DB
-            print(
-                "New Database Created: "
-                + str(database_exists(obj["engine"].url))
-            )  # Verifies if database is there or not.
-        else:
-            print("Database Already Exists")
+        _validate_database()
+        Base.metadata.create_all(bind=obj["engine"])
+    elif (ctx.invoked_subcommand == "index-moods") or force_initialize_db:
+        from model.persistence_model import MoodsTable, MoodEmbeddingsTable
+        _validate_database()
+        Base.metadata.create_all(bind=obj["engine"])
+    elif ctx.invoked_subcommand == "index-events" or force_initialize_db:
+        from model.persistence_model import ParsedEventEmbeddingsTable
+        _validate_database()
         Base.metadata.create_all(bind=obj["engine"])
 
+
+def _validate_database():
+    obj = click.get_current_context().obj
+    obj["engine"] = create_engine("sqlite:///drop.db")
+    if not database_exists(obj["engine"].url):  # Checks for the first time
+        create_database(obj["engine"].url)  # Create new DB
+        print(
+            "New Database Created: "
+            + str(database_exists(obj["engine"].url))
+        )  # Verifies if database is there or not.
+    else:
+        print("Database Already Exists")
 
 # LOGGING #
 
@@ -120,7 +138,7 @@ def _ingest_urls_helper(
     urls: List[str],
     db: DB,
     ai: AI,
-) -> dict[str, Path]:
+) -> dict[str, str]:
     """Ingest a url and return the path to the scraped file."""
 
     # Ask AI to create 3 file name suggestions for this parsed file.
@@ -448,10 +466,6 @@ def events_gen(filename: str, n_expected_events: int) -> Generator:
             yield event_string
 
 
-def _serialize_event(event: Event):
-    pass
-
-
 def system_prompt(db: DB):
     """
     TODO: Write a function that will use the file hoboken_girl_prompt.txt to generate a system prompt for the user.
@@ -479,6 +493,10 @@ def system_prompt(db: DB):
         }
     ]
 
+
+app.command()(index_moods)
+app.command()(index_events)
+app.command()(demo_retrieval)
 
 if __name__ == "__main__":
     app()
