@@ -77,18 +77,32 @@ def setup(
         logger.info("Initializing Drop database")
         _validate_database()
         PersistenceBase.metadata.create_all(bind=obj["engine"])
-    elif (ctx.invoked_subcommand == "index-moods") or force_initialize_db:
+    elif (ctx.invoked_subcommand == "index-moods"):
         from model.mood_model import (MoodJsonTable,
                                       SubmoodBasedEmbeddingTextAccessorTable)
         _validate_database()
         MoodBase.metadata.create_all(bind=obj["engine"])
-    elif ctx.invoked_subcommand == "index-events" or force_initialize_db:
+    elif ctx.invoked_subcommand == "index-events":
+        from model.persistence_model import ParsedEventTable
+        _validate_database()
+        PersistenceBase.metadata.create_all(bind=obj["engine"])
+    elif ctx.invoked_subcommand == "index-mood-embeddings":
+        from model.mood_model import SubmoodBasedEmbeddingsTable
+        _validate_database()
+        MoodBase.metadata.create_all(bind=obj["engine"])
+    elif ctx.invoked_subcommand == 'index-event-embeddings':
         from model.persistence_model import ParsedEventEmbeddingsTable
         _validate_database()
         PersistenceBase.metadata.create_all(bind=obj["engine"])
-    elif ctx.invoked_subcommand == "index-mood-embeddings" or force_initialize_db:
-        from model.mood_model import SubmoodBasedEmbeddingsTable
+    elif force_initialize_db:
+        logger.info("Force Initializing Drop database.")
         _validate_database()
+        from model.persistence_model import (ParsedEventEmbeddingsTable,
+                                             ParsedEventTable)
+        PersistenceBase.metadata.create_all(bind=obj["engine"])
+        from model.mood_model import (MoodJsonTable,
+                                      SubmoodBasedEmbeddingsTable,
+                                      SubmoodBasedEmbeddingTextAccessorTable)
         MoodBase.metadata.create_all(bind=obj["engine"])
 
 

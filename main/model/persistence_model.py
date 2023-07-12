@@ -27,18 +27,19 @@ class ParsedEventTable(Base):  # type: ignore
     failure_reason = Column(String, nullable=True)
     filename = Column(String, nullable=False)
     version = Column(String, nullable=False)
+    parsed_event_embedding = relationship(
+        "ParsedEventEmbeddingsTable", uselist=False, back_populates="parsed_event")
 
 
 class ParsedEventEmbeddingsTable(Base):  # type: ignore
-    __tablename__ = "parsed_events_embeddings"
+    __tablename__ = "ParsedEventEmbeddingsTable"
 
     id = Column(Integer, primary_key=True)
     description_embedding = Column(LargeBinary, nullable=False)
     embedding_version = Column(String, nullable=False)
 
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
-
-    parsed_event = relationship("ParsedEventTable")
+    parsed_event = relationship("ParsedEventTable", back_populates="parsed_event_embedding")
 
 
 def add_event(
@@ -161,24 +162,6 @@ def get_column_by_version_and_filename(
         session.close()
     return []
 
-def insert_parsed_event_embeddings(engine: Engine, events: List[Dict[str, str]]):
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    # Query the database for the given column with the given version and filename
-    embedding_lst = []
-    for parsed_event in events:
-        parsed_event_embedding = ParsedEventEmbeddingsTable(
-            description_embedding=parsed_event["embedding"],
-            embedding_version=parsed_event["version"],
-            parsed_event_id=parsed_event["id"],
-        )
-        embedding_lst.append(parsed_event_embedding)
-    try:
-        session.add_all(parsed_event_embedding)
-        session.commit()
-    finally:
-        session.close()
-
 
 def get_parsed_events(engine: Engine, filename: str, version: str) -> List[ParsedEventTable]:
     Session = sessionmaker(bind=engine)
@@ -200,4 +183,20 @@ def get_parsed_events(engine: Engine, filename: str, version: str) -> List[Parse
     finally:
         session.close()
 
-
+def insert_parsed_event_embeddings(engine: Engine, events: List[Dict[str, str]]):
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    # Query the database for the given column with the given version and filename
+    embedding_lst = []
+    for parsed_event in events:
+        parsed_event_embedding = ParsedEventEmbeddingsTable(
+            description_embedding=parsed_event["embedding_vector"],
+            embedding_version=parsed_event["version"],
+            parsed_event_id=parsed_event["id"],
+        )
+        embedding_lst.append(parsed_event_embedding)
+    try:
+        session.add_all(embedding_lst)
+        session.commit()
+    finally:
+        session.close()

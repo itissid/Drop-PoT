@@ -70,7 +70,7 @@ def index_mood_embeddings(
     for mood in mood_flavor_to_index.get_moods_for_flavor():
         indexed_moods = get_mood_json_entries(
             mood.MOOD, mood_flavor_to_index, version, ctx.obj["engine"])
-        assert len(indexed_moods) == 1, "There should be only one mood entry"
+        assert len(indexed_moods) == 1, f"There should be only one mood entry, there were {len(indexed_moods)}"
         db_indexed_mood = indexed_moods[0]
         # Sanity check.
         _sanity_check_before_inserting_embeddings(
@@ -103,5 +103,33 @@ def _sanity_check_before_inserting_embeddings(sub_mood, db_indexed_submood):
             "The submoods from file and indexed into MoodJsonTable should be equal.")
 
 
+def index_event_embeddings(ctx: typer.Context, filename: str, version: str = typer.Option(
+        "v1",   help="The version of the embedding data. Just an arbitrary string.")):
+    engine = ctx.obj["engine"]
+    parsed_events = get_parsed_events(engine, filename, version)
+    if len(parsed_events) == 0:
+        typer.echo("No events found for given parameters.")
+        return
+    parsed_events_dict = [{key: value for key, value in event.__dict__.items()
+                           if not key.startswith('_')}
+                          for event in parsed_events
+                          ]
+    embedding_search = EmbeddingSearch()
+
+    for parsed_event in parsed_events_dict:
+        if parsed_event["description"]:
+            embedding = embedding_search.fetch_embeddings(
+                [parsed_event["description"]]
+            )
+            parsed_event["embedding_vector"] = encode(embedding)
+    filtered_events = [
+        event for event in parsed_events_dict if event.get("embedding_vector") is not None]
+    insert_parsed_event_embeddings(engine, filtered_events)
+
+
 def demo_retrieval():
+    # Select a sub mood, 
+    # Select a location with lat long in hoboken
+    # compute distance between events and location
+    # 
     pass

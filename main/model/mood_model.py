@@ -242,11 +242,6 @@ def generate_submoods_json_accessors(mood_id, submoods: List[SubMood]) -> List[S
     return entries
 
 
-def insert_embedding_text(engine: Engine, mood: MoodJsonTable, json_path_records: List[SubmoodBasedEmbeddingTextAccessorTable]):
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
-
 def get_submood_embedding_text(mood: MoodJsonTable, version: str, json_path_records: List[SubmoodBasedEmbeddingTextAccessorTable]):
     sub_moods_json = json.loads(mood.sub_moods)
     records = []
@@ -303,5 +298,8 @@ def insert_into_embeddings_table(engine: Engine, embedding_entries: List[dict]):
                 )
                 session.add(embeddings_table_entry)
         session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
         session.close()
