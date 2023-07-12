@@ -16,7 +16,7 @@ __pycache__/
 *.swp
 *.swo
 *.tmp
-
+*.sql
 # Ignore database files
 *.db
 

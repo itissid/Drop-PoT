@@ -1,9 +1,23 @@
+import json
+from dataclasses import asdict
 from enum import Enum
 from typing import Any, Dict, List, cast
+
 import typer
-from model.persistence_model import MoodIndex, Mood
-from model.persistence_model import insert_mood
+from colorama import Fore
+from datasette_faiss import encode
+from model.mood_model import (Mood, MoodFlavors,
+                              generate_submoods_json_accessors,
+                              get_mood_json_entries,
+                              get_submood_embedding_text,
+                              insert_accessor_entries,
+                              insert_into_embeddings_table,
+                              insert_into_mood_json_table)
+from model.persistence_model import (get_parsed_events,
+                                     insert_parsed_event_embeddings)
 from utils.ai import EmbeddingSearch
+from utils.cli_utils import _optionally_format_colorama, _pp
+
 # TODO(Sid): Filter by th Submoods, place_or_activity text
 # 1. Generate embeddings for each mood and store them in a table(we don't need to train this)
 # 2. Generate embeddings for each description in the drop_embedding table with the IDs from the drop table(we don't want to train these too just yet)
@@ -11,25 +25,82 @@ from utils.ai import EmbeddingSearch
 # 4. Use datasette's faiss_agg query to determine the events: Demo
 
 
+# TODO: Override callback argument and refactor the table creation from hoboken_girl_extraction.py.
 def index_moods(
-    mood_type_to_index: MoodIndex = typer.Argument(
-        ..., help="The mood type to index"
+    ctx: typer.Context,
+    mood_type_to_index: MoodFlavors = typer.Argument(
+        ..., help="The curated mood flavor to index(eventually generate an embedding for it)"
     ),
     version: str = typer.Option(
         "v1",   help="The version of the mood data to index")
 ):
-    embedding_search = EmbeddingSearch()
-    typer.echo(f"Indexing events: {mood_type_to_index.get_moods()}")
-    for mood in mood_type_to_index.get_moods():
-        mood = cast(Mood, mood)
+    typer.echo(
+        f"Indexing moods: {','.join(mood.MOOD for mood in mood_type_to_index.get_moods_for_flavor())}")
+    for mood in mood_type_to_index.get_moods_for_flavor():
         # Insert the mood into the moods table.
         # Generate the embeddings for each mood.Mood, mood.SUB_MOODS, mood.PLACES_OR_ACTIVITIES and mood.DESCRIPTIONS
-        for submood in mood.SUB_MOODS:
-            for place_or_activity in mood.PLACES_OR_ACTIVITIES:
-                pass
+        mood = cast(Mood, mood)
+        id = insert_into_mood_json_table(
+            mood.MOOD, mood.SUB_MOODS, mood_type_to_index, version, ctx.obj["engine"])
+        insert_accessor_entries(id, mood.SUB_MOODS, ctx.obj["engine"])
 
-def index_events():
-    pass
+
+class Choices(str, Enum):
+    SUB_MOOD = "SUB_MOOD"
+    SUB_MOOD_PLACES = "SUB_MOOD,PLACE_OR_ACTIVITY"
+    SUB_MOOD_REASONNING = "SUB_MOOD,REASONING"
+    SUB_MOOD_PLACES_REASONNING = "SUB_MOOD,PLACE_OR_ACTIVITY,REASONING"
+# Index the moods one at a time.
+
+# TODO: Override callback argument and refactor the table creation from hoboken_girl_extraction.py.
+
+
+def index_mood_embeddings(
+        ctx: typer.Context,
+        mood_flavor_to_index: MoodFlavors = typer.Argument(
+            ..., help="The mood type to index"),
+        version: str = typer.Option(
+        "v1",   help="The version of the mood data to index")):
+    # Generate the embeddings from the
+    composite_types = ['SUB_MOOD', 'SUB_MOOD,PLACE_OR_ACTIVITY', 'SUB_MOOD,REASONING',
+                       'SUB_MOOD,PLACE_OR_ACTIVITY,REASONING'], "Invalid composite type"
+    typer.echo(
+        f"Indexing for flavor({mood_flavor_to_index}): {','.join(mood.MOOD for mood in mood_flavor_to_index.get_moods_for_flavor())}")
+    embedding_search = EmbeddingSearch()
+    for mood in mood_flavor_to_index.get_moods_for_flavor():
+        indexed_moods = get_mood_json_entries(
+            mood.MOOD, mood_flavor_to_index, version, ctx.obj["engine"])
+        assert len(indexed_moods) == 1, "There should be only one mood entry"
+        db_indexed_mood = indexed_moods[0]
+        # Sanity check.
+        _sanity_check_before_inserting_embeddings(
+            mood.SUB_MOODS, json.loads(db_indexed_mood.sub_moods))  # type: ignore
+        # Dynamically generate all the embedding text.
+        accessor_lst = generate_submoods_json_accessors(
+            db_indexed_mood.id, mood.SUB_MOODS)
+        # Add the embeddings.
+        embedding_text_records = get_submood_embedding_text(
+            db_indexed_mood, version, accessor_lst)
+        for row in embedding_text_records:
+            embedding_vector = embedding_search.fetch_embeddings(
+                [row['embedding_text']])
+            # datasette-fais compatible blob
+            row['embedding_vector'] = encode(embedding_vector)
+        insert_into_embeddings_table(ctx.obj["engine"], embedding_text_records)
+
+
+def _sanity_check_before_inserting_embeddings(sub_mood, db_indexed_submood):
+    if [asdict(m) for m in sub_mood] != db_indexed_submood:
+        typer.echo(_optionally_format_colorama(
+            "Expected the submood from our file two to be equal", True, Fore.GREEN))
+        for expected in sub_mood:
+            _pp(asdict(expected))
+        typer.echo(_optionally_format_colorama(
+            ".... to these:", True, Fore.GREEN))
+        for in_db in db_indexed_submood:
+            _pp(asdict(in_db))
+        raise ValueError(
+            "The submoods from file and indexed into MoodJsonTable should be equal.")
 
 
 def demo_retrieval():

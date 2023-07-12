@@ -1,48 +1,34 @@
 import datetime
 import json
-from dataclasses import asdict
-from pathlib import Path
-import re
-from typing import Dict, Generator, List, Optional
-from sqlalchemy import create_engine
-
-from colorama import Fore
-import typer
-from utils.db import DB
-from utils.ai import AI
-from utils.scraping import get_documents
-from utils.cli_utils import (
-    ask_user_helper,
-    choose_file,
-    would_you_like_to_continue,
-    go_autopilot,
-    edit_dict,
-    _optionally_format_colorama,
-    formatted_dict,
-)
-from utils.prompt_utils import (
-    base_prompt_hoboken_girl,
-    hoboken_girl_event_function_param,
-)
-from model.types import Event, create_event
-from model.persistence_model import (
-    add_event,
-    get_column_by_version_and_filename,
-    get_num_events_by_version_and_filename,
-    ParsedEventTable,
-    Base,
-)
-from commands.embedding_commands import (
-    index_events,
-    index_moods,
-    demo_retrieval,
-)
-import click
-from sqlalchemy_utils import database_exists, create_database
-
 # from .main import engine
 import logging
+import re
+from dataclasses import asdict
+from pathlib import Path
+from typing import Dict, Generator, List, Optional
 
+import click
+import typer
+from colorama import Fore
+from commands.embedding_commands import demo_retrieval  # index_events,
+from commands.embedding_commands import (index_event_embeddings,
+                                         index_mood_embeddings, index_moods)
+from model.mood_model import Base as MoodBase
+from model.persistence_model import Base as PersistenceBase
+from model.persistence_model import (ParsedEventTable, add_event,
+                                     get_column_by_version_and_filename,
+                                     get_num_events_by_version_and_filename)
+from model.types import Event, create_event
+from sqlalchemy import create_engine
+from sqlalchemy_utils import create_database, database_exists
+from utils.ai import AI
+from utils.cli_utils import (_optionally_format_colorama, ask_user_helper,
+                             choose_file, edit_dict, formatted_dict,
+                             go_autopilot, would_you_like_to_continue)
+from utils.db import DB
+from utils.prompt_utils import (base_prompt_hoboken_girl,
+                                hoboken_girl_event_function_param)
+from utils.scraping import get_documents
 
 app = typer.Typer()
 
@@ -65,7 +51,7 @@ logger.addHandler(console_handler)
 
 
 @app.callback()
-def logging_setup(
+def setup(
     ctx: typer.Context,
     loglevel: str = typer.Option("INFO", help="Set the log level"),
     force_initialize_db: bool = False,
@@ -90,28 +76,35 @@ def logging_setup(
     ):
         logger.info("Initializing Drop database")
         _validate_database()
-        Base.metadata.create_all(bind=obj["engine"])
+        PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif (ctx.invoked_subcommand == "index-moods") or force_initialize_db:
-        from model.persistence_model import MoodsTable, MoodEmbeddingsTable
+        from model.mood_model import (MoodJsonTable,
+                                      SubmoodBasedEmbeddingTextAccessorTable)
         _validate_database()
-        Base.metadata.create_all(bind=obj["engine"])
+        MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-events" or force_initialize_db:
         from model.persistence_model import ParsedEventEmbeddingsTable
         _validate_database()
-        Base.metadata.create_all(bind=obj["engine"])
+        PersistenceBase.metadata.create_all(bind=obj["engine"])
+    elif ctx.invoked_subcommand == "index-mood-embeddings" or force_initialize_db:
+        from model.mood_model import SubmoodBasedEmbeddingsTable
+        _validate_database()
+        MoodBase.metadata.create_all(bind=obj["engine"])
 
 
 def _validate_database():
     obj = click.get_current_context().obj
-    obj["engine"] = create_engine("sqlite:///drop.db")
-    if not database_exists(obj["engine"].url):  # Checks for the first time
-        create_database(obj["engine"].url)  # Create new DB
+    url = "sqlite:///drop.db"
+    if not database_exists(url):  # Checks for the first time
+        create_database(url)  # Create new DB
         print(
             "New Database Created: "
             + str(database_exists(obj["engine"].url))
         )  # Verifies if database is there or not.
+    if not obj.get("engine"):
+        obj["engine"] = create_engine(url)
     else:
-        print("Database Already Exists")
+        print("Engine already Exists")
 
 # LOGGING #
 
@@ -495,7 +488,8 @@ def system_prompt(db: DB):
 
 
 app.command()(index_moods)
-app.command()(index_events)
+app.command()(index_mood_embeddings)
+app.command()(index_event_embeddings)
 app.command()(demo_retrieval)
 
 if __name__ == "__main__":

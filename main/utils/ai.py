@@ -20,19 +20,14 @@
 # SOFTWARE.
 
 from __future__ import annotations
-import json
 
+import json
 import logging
 from typing import List
 
 import openai
-
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_random_exponential,
-)
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_random_exponential)
 
 logger = logging.getLogger(__name__)
 
@@ -171,9 +166,14 @@ class EmbeddingSearch:
             logger.exception(e)
             raise e
 
-    def fetch_embeddings(self, lsts: List[str]):
+    def fetch_embeddings(self, lsts: List[str]) -> List:
         # TODO add the user parameter to the request to monitor any misuse.
-        _fetch_embeddings(model=self.model, input=lsts)
+        embedding_data = _fetch_embeddings(model=self.model, input=lsts)
+        if embedding_data and 'data' in embedding_data and len(embedding_data['data'][0]) > 0:
+            return embedding_data['data'][0]['embedding']
+        else:
+            raise Exception(
+                f"No embeddings or empty results returned from OpenAI API:\n{str(embedding_data)})")
 
 
 @retry(
@@ -189,6 +189,4 @@ class EmbeddingSearch:
     ),
 )
 def _fetch_embeddings(**kwargs):
-    return openai.Embeddings.create(**kwargs)
-
-
+    return openai.Embedding.create(**kwargs)
