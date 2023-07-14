@@ -49,6 +49,9 @@ console_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
+# TODO(Sid): Move the invoke_subcommand checks to individual command files where it is used,
+# we can oveeride @app.callback there.
+
 
 @app.callback()
 def setup(
@@ -120,7 +123,7 @@ def _validate_database():
     else:
         print("Engine already Exists")
 
-# LOGGING #
+# END LOGGING #
 
 
 @app.command()

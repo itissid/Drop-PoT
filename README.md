@@ -1,7 +1,32 @@
 # poc_drop_content_search
-This is a PoC for ingesting text content into a vector database from which we can retrieve relevant search results given a NL Question.
+The idea is to use this framework as a test bed for testing drop's prompt's data quality(for now textual prompts).
+Lots of pieces are still missing; The examples in this PoC are not the final prompts, In the real app there will be a BFF(Conversational ChatGPT like api) that will intercept the data and actually polish/filter and serve the prompts.
 
-# UPDATE (6th July): Currently debugging some issues in event extraction*. Stay tuned.
+Tech wise the PoC is ingesting text content into a vector database from which we can retrieve relevant search results(i.e. the bread and butter of prompts) given a NL Query which we call a "[mood](./main/model/mood_seed.py)" which we will infer or generate(seed). 
+
+There are a few core ideas of  I wanted to demonstrate
+1. To an extent we can extract structured information from content using OpenAI GPT. For example the `event_json`:
+![s](./docs/StructuredInfoFromText.png) column is retrieved from unstructured text using a prompt.
+
+2. Generate seed moods for a locality(Hoboken or South Bangalore) to start off.
+
+3. We can use embeddings from OpenAI API to emnde data from steps 1, 2 (see the embeddings table in drop.db) the purpose is to find similarity 
+in a dataset using FAISS [Vector search](https://datasette.io/plugins/datasette-faiss):
+![relevant events](./docs/Relevant%20Events.png). There is nothing new about embeddings and vector databases. What is new is we *dynamically index* a subset of the data and query it repeatedly using 
+datasett-faiss. At scale we can do this using faiss. The need for dynamic index comes from  the so called "filter query", which I imagine can come from user cues  from our Shared space or from the Context
+
+3. TODO: We can order the events in a reverse spatial-cronological order.
+4. TODO: Lead into how we can go from issues we Cold start towards improving the quality of content retrieved using
+a ML NLP model.
+
+# UPDATE (14th July): 
+Play with the database 
+The database [dump](https://www.dropbox.com/home/project_drop) from tg using datasette:
+Install [datasette](https://datasette.io/) in the python virtual env and just say `datasette drop.db`.
+This is what you should see is ![this](./docs/Screenshot%202023-07-14%20at%207.01.44%20AM.png):
+
+## How to retrieve similar documents?
+The 
 
 # Lay of the land 
 ## Data Extraction Flow
@@ -58,10 +83,32 @@ WIP: See updates on July 6th but the idea is to create Event objects per the pro
 python main/hoboken_girl_extraction.py extract-serialize-events 2023-05-23 --cities Hoboken --cities JerseyCity --ingestable-article-file ~/workspace/scraping/examples/postprocessed/hobokengirl_com_hoboken_jersey_city_events_june_23_2023_20230704_170142_postprocessed.txt 
 ```
 
-# 4. NEXT: Use OpenAI Embeddings to create Embedding vectors
-TODO: Idea can add  them to SQLLite and use SQLite extension called sqllite-vss https://observablehq.com/@asg017/introducing-sqlite-vss
+There will be errors in this process due to OpenAI timing out. In running this I
+found that this errored in 2-3/100 data points, even with 10 retries and
+exponentail back off. YMMV. But we need to eventually deal with this.  A dumb
+way is to keep retrying forever but that might take a long time for more than a
+few 1000 examples. A more clever way is to use async frameworks like celery and
+AMPQ to deal with the failures in a more clever way. 
+
+We record the failures in the database:
+
+|description|event_json|truncated_event_raw_text                            |failure_reason                                                                                                                                                                                                                                                                         |truncated_filename|version|
+|-----------|----------|----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------|-------|
+|           |null      |Pride Run at Pier A Park   Saturday, June 24th &#124; ...|("Connection broken: InvalidChunkLength(got length b'', 0 bytes read)", InvalidChunkLength(got length b'', 0 bytes read))                                                                                                                                                              |hobokengi...      |v1     |
+|           |null      |Marisa Monte at NJPAC   Friday, June 23rd    &#124; 8P...|("Connection broken: InvalidChunkLength(got length b'', 0 bytes read)", InvalidChunkLength(got length b'', 0 bytes read))                                                                                                                                                              |hobokengi...      |v1     |
+|           |null      |Musical Cooking Class by One Great Vegan   Saturd...|That model is currently overloaded with other requests. You can retry your request, or contact us through our help center at help.openai.com if the error persists. (Please include the request ID f9414e90d044c6edf5b33ce1bcc5115c in your message.) (Error occurred while streaming.)|hobokengi...      |v1     |
+|           |null      |State Fair Meadowlands at MetLife Stadium   Ongoi...|That model is currently overloaded with other requests. You can retry your request, or contact us through our help center at help.openai.com if the error persists. (Please include the request ID 69490a87a9700a07a206ca1900d0d305 in your message.) (Error occurred while streaming.)|hobokengi...      |v1     |
+|           |null      |The Laugh Tour Comedy Club at Dorrian’s Red Hand ...|                                                                                                                                                                                                                                                                                       |hobokengi...      |v1     |
 
 
+# 4. Use OpenAI Embeddings to create Embedding vectors
+1. To create the embeddings for the moods in mood_seed.py use. Example: 
+```
+python main/hoboken_girl_extraction.py index-moods MILLENIALS
+```
+This creates a table called MoodJsonTable. 
+
+TODO: More to come in next commit
 
 
 
