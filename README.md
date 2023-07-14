@@ -26,13 +26,12 @@ This is not hard to do once we know what is relevant to the mood.
 a ML NLP model.
 
 # UPDATE (14th July): 
-Play with the database 
-The database [dump](https://www.dropbox.com/home/project_drop) from tg using datasette:
-Install [datasette](https://datasette.io/) in the python virtual env and just say `datasette drop.db`.
-This is what you should see is ![this](./docs/Screenshot%202023-07-14%20at%207.01.44%20AM.png):
+Play with the database: The database [dump](https://www.dropbox.com/home/project_drop) can be visualized using datasette:
 
-## How to retrieve similar documents?
-The 
+Install [datasette](https://datasette.io/) in the python virtual env and just say `datasette drop.db`.
+
+This is what you should see: ![this](./docs/Screenshot%202023-07-14%20at%207.01.44%20AM.png)
+
 
 # Lay of the land 
 ## Data Extraction Flow

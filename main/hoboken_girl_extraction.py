@@ -159,13 +159,14 @@ def _ingest_urls_helper(
         I want you to suggest at least 3 *unique* file names for each of the URL I will provide.
 
         Here are the instructions: 
-        1. Use the text in the URL information to create the file name leave out the HTTP(S) and www part.
+        1. Use the text in the URL information to create the file name. Leave out the HTTP(S) and www part of the file name.
         2. Never use special characters like: [!@#$%^&*()+{{}}|:"<>?] for a file name. Only use _ in the name.
         3. Add `{now}` suffix to each filename as well.
         4. The extension of the files is always .txt.
         5. Only output the json in the response and NO OTHER TEXT. 
-        6. The file names for each URL *MUST BE UNIQUE* so add an additional suffix to them to make them unique.
-        6. Generate the output in json array format following this template:
+        6. The file names for each URL *MUST BE UNIQUE* so add an additional suffix to them to make them unique. 
+        7. Generate the output in json array format in triple backticks below.
+        8.Make sure the URL keys in the JSON format are *exactly the same* as I provide. DO NOT CHANGE THEM.
     
         ```
         [{{
