@@ -166,7 +166,7 @@ def _ingest_urls_helper(
         5. Only output the json in the response and NO OTHER TEXT. 
         6. The file names for each URL *MUST BE UNIQUE* so add an additional suffix to them to make them unique. 
         7. Generate the output in json array format in triple backticks below.
-        8.Make sure the URL keys in the JSON format are *exactly the same* as I provide. DO NOT CHANGE THEM.
+        8. Make sure the URL keys in the JSON format are *exactly the same* as I provide. DO NOT CHANGE THEM.
     
         ```
         [{{
