@@ -1,11 +1,14 @@
 # poc_drop_content_search
 The idea is to use this framework as a test bed for testing drop's prompt's data quality(for now limited to textual prompts).
-Lots of pieces are still missing; The examples in this PoC are not the final prompts, In the real app there will be a BFF(Conversational ChatGPT like api) that will intercept the data and actually polish/filter and serve the prompts.
+Lots of pieces are still missing; 
+- The ranking is generic and based on content personalized, there is no social graph.
+- The examples in this PoC are not the final prompts(In the real app there will be a BFF(Conversational ChatGPT like api) that will intercept the data and actually polish/rank/filter and serve the prompts). 
 
-Tech wise the PoC is ingesting text content into a vector database from which we can retrieve relevant search results(i.e. the bread and butter of prompts) given a NL Query which we call a "[mood](./main/model/mood_seed.py)" which we will infer or generate(seed). 
 
-There are a few core ideas of  I wanted to demonstrate
-1. To an extent we can extract structured information from content using OpenAI GPT. For example the `event_json` column is a JSON of facts extracted from the `original_event` data scraped from the web:
+Tech wise the PoC is to ingest text content into a vector database from which we can retrieve relevant search results(i.e. the bread and butter of prompts) given a NL Query which we call a "[mood](./main/model/mood_seed.py)" which we will infer or generate(seed). 
+
+There are a few core ideas of we do want to demonstrate:
+1. To a fair extent we can extract structured information from unstructured web content using OpenAIs API. For example the `event_json` column is a JSON of facts extracted from the `original_event` data scraped from the web:
 ![s](./docs/StructuredInfoFromText.png) column is retrieved from unstructured text using a prompt.
 
 2. Generate seed moods for a locality(Hoboken or South Bangalore) to start off.
@@ -110,6 +113,11 @@ variable where I gave it to ChatGPT to just generate moods for me.
 This is far from perfect since it results Missing or Overlapping data between moods. With our small dataset 
 I have faced more of the Missing data than the overlapping issue. 
 
+
+Poor score with moods(due to lack of data):
+![moods](./docs/MoodsWithLackOfDataForThem.png)
+
+
 # 4. Use OpenAI Embeddings to create Embedding vectors
 1. To create the embeddings for the moods in mood_seed.py use. Example: 
 ```
@@ -125,13 +133,10 @@ python main/hoboken_girl_extraction.py index-mood-embeddings MILLENIALS
 # 5. Demo!
 Lets use the mood embeddings to find relevant embeddings. Check out [this](./example_retrieval.sql) script.
 You should run it in the datasette browser after you have installed the plugin in your env.
-Here are some of the results. Rule of thumb: below 0.36 distance the results are better.
+Here are some of the results. Rule of thumb: below 0.36 distance the results are better:
 ![moods](./docs/MoodsThatHaveSufficientData.png)
 
 
-
-Poor score with moods(due to lack of data):
-![moods](./docs/MoodsWithLackOfDataForThem.png)
 
 
 
