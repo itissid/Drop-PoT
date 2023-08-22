@@ -16,7 +16,7 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
     2. Extract exact street addresses from the event the best you can.
     3. Extract and convert ALL dates to YYYY-MM-DD format.
     4. Extract and convert ALL times to HH:MM format in the ET time zone.
-    5. Multiple start dates and times in the text are possible and must be stored comma separated: "2020-10-01,2020-10-02" or "19:45,20:01"
+    5. Multiple start dates and times in the text are possible and are a list:["2020-10-01","2020-10-02"] or ["19:45","20:01"]
 
     Here are the instructions for extracting the per event fields from the text for the function call I will ask you to make:
     1. name: A short title of the event.
@@ -31,14 +31,14 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
     4. addresses: One or more addresses where the Event is happening in an array. If present.
     5. is_ongoing: If the event does not have a start date it is ongoing, but it may have an end date and end time.
                                 There maybe an explicit mention of the fact that the event is ongoing in the text.
-    6. start_date: The event's start date if available in the text, otherwise None.
-    7. end_date: The event's end date if available in the text otherwise 'None'.
-    8. start_time: The event's start time if available in the text, otherwise None.
-    9. end_time: The event's end time if available in the text otherwise None
+    6. start_date: A list type, the event's start dates if available in the text, otherwise None.
+    7. end_date: A list type, The event's end dates if available in the text otherwise 'None'.
+    8. start_time: A list type, The event's start times if available in the text, otherwise None.
+    9. end_time: A list type, The event's end times if available in the text otherwise None
     10. is_paid: There does not need to be a necessary mention of payment for establishments like gyms or restaurents in which case return False
     11. has_promotion: If there is a promotional text in the field then this flag is set to true.
     12. promotion_details: extract promotional text as such. Don't forget to extract the conditions of the promotion as well. Some  examples of text are:
-                                1.Free food and drinks.
+                                1. Free food and drinks.
                                 2. You can receive $10/unit for Botox (regularly $12/unit).
                                 3. $50 off your next treatment (must be booked within 90 days of last treatment).
                                 4. You can receive one month free when you enroll your child into their 12-month program.
@@ -49,6 +49,7 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
                                 are paid. Use your judgement to set this field.
     14. payment_details: Include any pricing information available in the text even if it is not explicit for example
                                 art shows, comedy clubs, concerts, restaurants, networking events and courses have an implied payment.
+    15. links: A list type Extract all relevant hyperlinks from the event details if available in the text.
 
 
     Following are some examples of text you will be parsing in triple back ticks
@@ -78,8 +79,8 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
         description="The Mizuho Americas Open and the LPGA Tour comes to Liberty National Golf Club for the first time. Hosted by LPGA icon and Major Champion, Michelle Wie West, the tournament will feature 120 LPGA Tour professional women golfers while 24 women junior golfers from the American Junior Golf Association (AJGA) Tour will compete in a separate tournament. The tournament will showcase the best women golfers in the world as they compete for a $2.75 million purse — one of the largest non-major championship purses on the LPGA Tour this 2023 season.,
         addresses=["100 Caven Point Road in Jersey City"],
         is_ongoing=False,
-        start_date="2023-05-31",
-        end_date="2023-06-04",
+        start_date=["2023-05-31"],
+        end_date=["2023-06-04"],
         start_time=None,
         end_time=None,
         is_paid=True,
@@ -87,6 +88,7 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
         promotion_details=None,
         payment_mode="tickets",
         payment_details="https://www.cuetoems.com/mizuho_2023/Tickets.aspx",
+        links=["https://www.cuetoems.com/mizuho_2023/Tickets.aspx", "https://mizuhoamericasopen.com/"]
     `
     
     Example 2:
@@ -110,7 +112,7 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
     description="Hello Hydration,is opening a third location in Garden State Plaza Mall this month. All three med spa locations will be running a special spring/summer promotion for HG readers. ",
     addresses=["132 Washington Street #302, Hoboken", "255 Route 3, Suite 206, Secaucus"],
     start_date=None,
-    end_date="2023-08-31",
+    end_date=["2023-08-31"],
     is_ongoing=True,
     start_time=None,
     end_time=None,
@@ -119,6 +121,7 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
     promotion_details="You can receive $10/unit for Botox (regularly $12/unit), $150 off fillers (regularly $700), and $50 off your next treatment (must be booked within 90 days of last treatment), when you mention ‘Hoboken Girl’ when booking your appointment.",
     payment_mode="appointment",
     payment_details="https://hellohydration.janeapp.com/"
+    links=["https://hellohydration.janeapp.com/", "https://hellohydrationnj.com/"]
     `
 
     Example 3 with no discernable street address:
@@ -130,17 +133,48 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
     `
     name="HDSID Presents Summer Farmers Market",
     description="Get ready to shop for fresh fruits, vegetables, and goodies from local vendors at the summer market of 2023. This market will be located at Grove Street Path Plaza in Jersey City.",
-    start_date="2023-05-04",
-    end_date="2023-05-04",
+    start_date=["2023-05-04"],
+    end_date=["2023-05-04"],
     is_ongoing=False,
-    start_time="16:00",
-    end_time="18:00",
+    start_time=["16:00"],
+    end_time=["18:00"],
     is_paid=True,
     has_promotion=False,
     promotion_details=None,
     payment_mode="in_premises",
     payment_details=None,
+    links=["https://www.hobokengirl.com/jersey-city-farmers-market-vendor-application-hdsid/", "https://www.facebook.com/downtownjcfarmersmarket/"]
     `
+
+    Example 4 with multiple dates:
+    ```
+    A Gentleman’s Guide to Love + Murder at SOPAC 
+    Saturday, July 15th + Sunday, July 16th | Various times 
+    This Tony Award-winning operetta will be performing at One SOPAC Way in South Orange.    Learn more  here (https://www.sopacnow.org/events/lonj-gentlemans-guide/) . 
+    ```
+    `
+    name="A Gentleman’s Guide to Love + Murder at SOPAC",
+    description="This Tony Award-winning operetta will be performing at One SOPAC Way in South Orange. Learn more  here (https://www.sopacnow.org/events/lonj-gentlemans-guide/)"
+    addresses=["One SOPAC Way, South Orange, NJ"],
+    start_date=["2023-07-15", "2023-07-16"],
+    end_date=["2023-07-15", "2023-07-16"],
+    is_ongoing=False,
+    start_time=None,
+    end_time=None,
+    is_paid=True
+    has_promotion=False,
+    promotion_detail=None,
+    payment_mode="in_premises",
+    payment_dtail=None,
+    links=["https://www.sopacnow.org/events/lonj-gentlemans-guide/"]
+    `
+"""
+
+PARSE_EVENT_PROMPT = """
+    Process the following event in backticks according to the instructions provided previously.
+    ```
+    {event}
+    ```
 """
 
 # PLUGIN PROMPTS FOR USER on the CLI

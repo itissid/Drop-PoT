@@ -29,3 +29,5 @@ examples/experimental/*
 notebooks/blip2_instructed_generation.ipynb
 notebooks/*
 examples/*
+main/utils/ai_adhoc.py
+main/utils/scratch.py
