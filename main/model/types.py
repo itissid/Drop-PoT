@@ -1,9 +1,12 @@
+import datetime
+import enum
+import logging
 from dataclasses import dataclass, field
 from typing import List, Optional
-import enum
-from utils.extraction_utils import flatten_list
-import datetime
 
+from utils.extraction_utils import flatten_list
+
+logger = logging.getLogger(__name__)
 
 class PaymentMode(enum.Enum):
     ticket = 1  # Ticketed events like art shows, concerts, networking events and courses.
@@ -29,16 +32,16 @@ class Event:
         default=False,
     )
     # The event's start date(which can be after the date time of the document) If the event is ongoing then start and end dates are moot.
-    start_date: Optional[datetime.date] = field(
+    start_date: Optional[List[datetime.date]] = field(
         default=None,
     )
-    end_date: Optional[datetime.date] = field(
+    end_date: Optional[List[datetime.date]] = field(
         default=None,
     )
-    start_time: Optional[datetime.time] = field(
+    start_time: Optional[List[datetime.time]] = field(
         default=None,
     )
-    end_time: Optional[datetime.time] = field(
+    end_time: Optional[List[datetime.time]] = field(
         default=None,
     )
     # means no payment, event is free and payment_mode will be None
@@ -58,11 +61,11 @@ class Event:
     payment_details: Optional[str] = field(
         default=None,
     )
-
+    links: Optional[List[str]] = field(default=None)
     def __post_init__(self):
         if not self.is_ongoing and self.start_date is None:
-            raise ValueError(
-                "Event start date is required if the event is not ongoing."
+            logger.warn(
+                "Event start date not mentioned but the event is possibly not ongoing."
             )
         if not self.is_paid and self.payment_mode is None:
             raise ValueError("Payment mode is required if the event is paid.")
@@ -71,6 +74,16 @@ class Event:
             self.addresses = flatten_list(self.addresses)
         if self.categories:
             self.categories = flatten_list(self.categories)
+        if self.start_date:
+            self.start_date = flatten_list(self.start_date)
+        if self.end_date:
+            self.end_date = flatten_list(self.end_date)
+        if self.start_time:
+            self.start_time = flatten_list(self.start_time)
+        if self.end_time:
+            self.end_time = flatten_list(self.end_time)
+        if self.links:
+            self.links = flatten_list(self.links)
 
 
 # Maybe there is a better way to do this
@@ -80,15 +93,17 @@ def create_event(
     categories: list,
     addresses: Optional[List[str]] = None,
     is_ongoing: bool = False,
-    start_date: Optional[datetime.date] = None,
-    end_date: Optional[datetime.date] = None,
-    start_time: Optional[datetime.time] = None,
-    end_time: Optional[datetime.time] = None,
+    start_date: Optional[List[datetime.date]] = None,
+    end_date: Optional[List[datetime.date]] = None,
+    start_time: Optional[List[datetime.time]] = None,
+    end_time: Optional[List[datetime.time]] = None,
     is_paid: bool = False,
     has_promotion: bool = False,
     promotion_details: Optional[str] = None,
     payment_mode: Optional[PaymentMode] = None,
     payment_details: Optional[str] = None,
+    links: Optional[List[str]] = None,
+
 ) -> Event:
     # Write a function that accepts an event  string and for each field in the Event class fills the fields with appropriate values extracted
     # from the text and returns the Event object.
@@ -113,8 +128,8 @@ def create_event(
         promotion_details=promotion_details,
         payment_mode=payment_mode,
         payment_details=payment_details,
+        links=links,
     )
-
 
 def sort_alphabet_list_reverse(lst: List[str]) -> List[str]:
     return sorted(lst, reverse=True)

@@ -59,18 +59,21 @@ class AI:
 
         return self.next(messages, function=function)
 
-    def fsystem(self, msg: str):
+    @staticmethod
+    def fsystem(msg: str):
         return {"role": "system", "content": msg}
 
-    def fuser(self, msg: str):
+    @staticmethod
+    def fuser(msg: str):
         return {"role": "user", "content": msg}
 
-    def fassistant(self, msg: str):
+    @staticmethod
+    def fassistant(msg: str):
         return {"role": "assistant", "content": msg}
 
     def next(
         self,
-        messages: list[dict[str, str]],
+        messages: List[dict[str, str]],
         prompt=None,
         function=None,
         explicitly_call=False,
@@ -78,64 +81,76 @@ class AI:
         if prompt:
             messages += [{"role": "user", "content": prompt}]
 
-        logger.debug(f"Creating a new chat completion: {messages}")
-        try:
-            if not function:
-                response = completion_with_backoff(
-                    messages=messages,
-                    stream=True,
-                    model=self.model,
-                    temperature=self.temperature,
-                )
-            else:
-                response = completion_with_backoff(
-                    messages=messages,
-                    stream=True,
-                    model=self.model,
-                    functions=[function],
-                    function_call=None
-                    if not explicitly_call
-                    else {"name": function["name"]},
-                    temperature=self.temperature,
-                )
-        except Exception as e:
-            logger.error(f"Error in chat completion: {e}")
-            raise e
-
-        chat = []
-        func_call = {
-            "name": None,
-            "arguments": "",
-        }
-        for chunk in response:
-            try:
-                delta = chunk["choices"][0]["delta"]
-                if "function_call" in delta:
-                    if "name" in delta.function_call:
-                        func_call["name"] = delta.function_call["name"]
-                    if "arguments" in delta.function_call:
-                        func_call["arguments"] += delta.function_call[
-                            "arguments"
-                        ]
-                if "content" in delta:
-                    msg = (
-                        delta.get("content", "") or ""
-                    )  # Key may be there but None
-                    chat.append(msg)
-            except Exception as e:
-                raise e
+        response = _try_completion(messages, self.model, function=function,
+                                   temperature=self.temperature, explicitly_call=explicitly_call)
+        chat, func_call = _chat_function_call_from_response(response)
+        print()
+        logger.debug("Chat completion finished.")
         logger.debug("".join(chat))
         logger.debug(func_call)
         print()
+
         messages += [
             {
                 "role": "assistant",
                 "content": "".join(chat),
-                "function_call": json.dumps(func_call),
+                "function_call": func_call,
             }
         ]
-        logger.debug(f"Chat completion finished: {messages}")
         return messages
+
+
+def _try_completion(messages, model, function=None, temperature=0.1, explicitly_call=False):
+    logger.debug(f"Creating a new chat completion: {messages}")
+    try:
+        if not function:
+            response = completion_with_backoff(
+                messages=messages,
+                stream=True,
+                model=model,
+                temperature=temperature,
+            )
+        else:
+            response = completion_with_backoff(
+                messages=messages,
+                stream=True,
+                model=model,
+                functions=[function],
+                function_call=None
+                if not explicitly_call
+                else {"name": function["name"]},
+                temperature=temperature,
+            )
+    except Exception as e:
+        logger.error(f"Error in chat completion: {e}")
+        raise e
+    return response
+
+
+def _chat_function_call_from_response(response):
+    chat = []
+    func_call = {
+        "name": None,
+        "arguments": "",
+    }
+    for chunk in response:
+        try:
+            delta = chunk["choices"][0]["delta"]
+            if "function_call" in delta:
+                if "name" in delta.function_call:
+                    func_call["name"] = delta.function_call["name"]
+                if "arguments" in delta.function_call:
+                    func_call["arguments"] += delta.function_call[
+                        "arguments"
+                    ]
+            if "content" in delta:
+                msg = (
+                    delta.get("content", "") or ""
+                )  # Key may be there but None
+                chat.append(msg)
+        except Exception as e:
+            raise e
+    return chat, func_call
 
 
 @retry(

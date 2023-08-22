@@ -28,3 +28,4 @@ pyvenv.cfg
 examples/experimental/*
 notebooks/blip2_instructed_generation.ipynb
 notebooks/*
+examples/*
