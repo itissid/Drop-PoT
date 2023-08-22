@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from utils.extraction_utils import flatten_list
+from main.utils.extraction_utils import flatten_list
 
 logger = logging.getLogger(__name__)
 
