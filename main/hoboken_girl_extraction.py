@@ -5,30 +5,34 @@ import logging
 import re
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, Generator, List, Optional
+from typing import Callable, Dict, Generator, List, Optional, Tuple
 
 import click
 import typer
 from colorama import Fore
-from commands.embedding_commands import demo_retrieval  # index_events,
-from commands.embedding_commands import (index_event_embeddings,
-                                         index_mood_embeddings, index_moods)
-from model.mood_model import Base as MoodBase
-from model.persistence_model import Base as PersistenceBase
-from model.persistence_model import (ParsedEventTable, add_event,
-                                     get_column_by_version_and_filename,
-                                     get_num_events_by_version_and_filename)
-from model.types import Event, create_event
 from sqlalchemy import create_engine
 from sqlalchemy_utils import create_database, database_exists
-from utils.ai import AI
-from utils.cli_utils import (_optionally_format_colorama, ask_user_helper,
-                             choose_file, edit_dict, formatted_dict,
-                             go_autopilot, would_you_like_to_continue)
-from utils.db import DB
-from utils.prompt_utils import (base_prompt_hoboken_girl,
-                                hoboken_girl_event_function_param)
-from utils.scraping import get_documents
+
+from main.commands.embedding_commands import demo_retrieval  # index_events,
+from main.commands.embedding_commands import (index_event_embeddings,
+                                              index_mood_embeddings,
+                                              index_moods)
+from main.model.ai_conv_types import EventNode, MessageNode, Role
+from main.model.mood_model import Base as MoodBase
+from main.model.persistence_model import Base as PersistenceBase
+from main.model.persistence_model import (
+    ParsedEventTable, add_event, get_column_by_version_and_filename,
+    get_num_events_by_version_and_filename)
+from main.model.types import Event, create_event
+from main.utils.ai import AIDriver, AltAI, driver_wrapper
+from main.utils.cli_utils import (_optionally_format_colorama, ask_user_helper,
+                                  choose_file, formatted_dict,
+                                  would_you_like_to_continue)
+from main.utils.db import DB
+from main.utils.prompt_utils import (base_prompt_hoboken_girl,
+                                     default_parse_event_prompt,
+                                     hoboken_girl_event_function_param)
+from main.utils.scraping import get_documents
 
 app = typer.Typer()
 
@@ -140,21 +144,21 @@ def ingest_urls(
         raise typer.Exit(code=1)
     input_path = input_path / f"{run_prefix}_ingestion"
     ingestion_db = DB(input_path)
-    ai = AI()
+    ai = AltAI()
     _ingest_urls_helper(urls, ingestion_db, ai)
 
 
 def _ingest_urls_helper(
     urls: List[str],
     db: DB,
-    ai: AI,
+    ai: AltAI,
 ) -> dict[str, str]:
     """Ingest a url and return the path to the scraped file."""
 
     # Ask AI to create 3 file name suggestions for this parsed file.
     def ask():
         now = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        return ai.start(
+        return ai.send(
             system=f"""
         I want you to suggest at least 3 *unique* file names for each of the URL I will provide.
 
@@ -254,13 +258,17 @@ def extract_serialize_events(
         "v1", help="The version of the event extractor to use"
     ),
     retry_only_errors: bool = False,
+    # For chatting with the AI in the loop to fix its generation.
+    human_in_loop: bool = False,
 ):
     """
-    Call parse_events and get
+    Call AI to parse all teh events in ingestable_article_file to extract
+    structured events and then save them to the database as JSON.
     """
 
     if ingestable_article_file:
         ingestable_article_file = Path(ingestable_article_file).absolute()
+        assert ingestable_article_file.exists()
     else:
         # TODO: Implement manual input to debug.
         typer.echo("No file not supported yet. Exiting")
@@ -290,102 +298,133 @@ def extract_serialize_events(
         return
 
     # 1. Send System prompt.
+    ai = AltAI()
+    ai_driver = AIDriver(ai)
 
-    ai = AI()
-    messages = ai.start(
-        base_prompt_hoboken_girl(cities, date.strftime("%Y-%m-%d")),
-        # NOTE: Add an optional clarification Step, here is where we might add a hook prompt for the AI to ask the user in case anything is unclear
-        # this can be useful for AI to self reflect and produce more grounded prompts.
-        "Wait for me to send/paste an event below.",
+    system_message = MessageNode(
+        role=Role.system,
+        message_content=base_prompt_hoboken_girl(
+            cities, date.strftime("%Y-%m-%d")),
     )
-    print(f"I have {len(messages)} messages in my memory and the last was:")
-    # TODO: Add some assertion about messages recieved
-    print(messages[-1]["content"])
+    for event_node, event in hoboken_girl_driver_wrapper(events, system_message, ai_driver):
+        # TODO(Ref1): Serialize the event_node to db
+        print(event_node, event)
 
-    max_acceptable_errors = 5
-    num_errors = 0
+    # TODO (Ref1): Create messages using the MessageNode class.
+    # TODO (Ref1): Add the chat history returned by calls to AI to the add_event function and serialize to DB.
+    # TODO (Ref1): Test
+    # 1. A full chat history is saved to DB including the function call.
+    #   a. The system prompt, the original user messages and function call to AI
+    #   and the assistant messages(JSON to str stuff is confusing).
+    #
+    # 2. A replay history is also saved: Since we want to be able to replay
+    # everything else except the function call we need to save the EventNode to
+    # DB after transforming it.  This will be in a separate column in the
+    # parsed_events table.
 
-    element_names_already_seen = set(
-        get_column_by_version_and_filename(
-            ctx.obj["engine"],
-            "name",
-            version,
-            ingestable_article_file.name,
-        )
+    # messages = ai.start(
+    #     base_prompt_hoboken_girl(cities, date.strftime("%Y-%m-%d")),
+    #     # NOTE: Add an optional clarification Step, here is where we might add a hook prompt for the AI to ask the user in case anything is unclear
+    #     # this can be useful for AI to self reflect and produce more grounded prompts.
+    #     "Wait for me to send/paste an event below.",
+    # )
+    # print(f"I have {len(messages)} messages in my memory and the last was:")
+    # # TODO: Add some assertion about messages recieved
+    # print(messages[-1]["content"])
+
+    # max_acceptable_errors = 5
+    # num_errors = 0
+
+    # element_names_already_seen = set(
+    #     get_column_by_version_and_filename(
+    #         ctx.obj["engine"],
+    #         "name",
+    #         version,
+    #         ingestable_article_file.name,
+    #     )
+    # )
+
+    # Communicate with the driver.
+
+
+def hoboken_girl_driver_wrapper(
+        events: List[str],
+        system_message: MessageNode,
+        ai_driver: AIDriver,
+        message_content_callable=lambda event_node: default_parse_event_prompt(
+            event=event_node.raw_event_str),
+        function_call_spec_callable=lambda: hoboken_girl_event_function_param(),
+        function_callable_for_ai_function_call=lambda ai_message: call_ai_generated_function_for_event(
+            ai_message),
+        interrogation_callback: Callable[[
+            EventNode], Optional[MessageNode]] = lambda event_node: None,
+
+) -> Generator[EventNode, None, None]:
+
+    # def message_content_callable(event_node: EventNode):
+    #     return default_parse_event_prompt(event=event_node.raw_event_str)
+
+    # def function_call_spec_callable():
+    #     return hoboken_girl_event_function_param()
+
+    driver_gen = driver_wrapper(
+        events,
+        system_message,
+        ai_driver,
+        message_content_callable,
+        function_call_spec_callable,
+        function_callable_for_ai_function_call,
+        interrogation_callback,
     )
-
-    autopilot = False
-    for i, event in enumerate(events):
-        # 2. Send the remaining prompts
-        try:
-            event_obj = _parse_events(ai, messages[:1], event)
-            if not event_obj:
-                # TODO: Log this in SQL as an error in processing as NoEventFound.
-                engine = ctx.obj["engine"]
-                add_event(
-                    engine,
-                    event=None,
-                    original_text=event,
-                    failure_reason="NoEventFunctionCallByAI",
-                    filename=ingestable_article_file.name,
-                    version=version,
-                )
-                continue
-            if not autopilot:
-                typer.echo("Confirm is the event looks correct or edit it")
-                typer.echo(
-                    f"{_optionally_format_colorama('Raw Event text', True, Fore.GREEN)}'\n'{event}"
-                )
-                edit_dict(asdict(event_obj))
-                # The user may want to turn on autopilot after a few events.
-                if go_autopilot():
-                    typer.echo(
-                        "Autopilot is on. Processing all events without human intervention."
-                    )
-                    autopilot = True
-            else:
-                typer.echo(
-                    f"Autopilot is on. Processing  event {_optionally_format_colorama(str(i+1), True, Fore.GREEN)} without human intervention."
-                )
-            engine = ctx.obj["engine"]
-            if event_obj.name not in element_names_already_seen:
-                add_event(
-                    engine,
-                    event=event_obj,
-                    original_text=event,
-                    failure_reason=None,
-                    filename=ingestable_article_file.name,
-                    version=version,
-                )
-            else:
-                logger.debug(
-                    f"Skipping {i}th event with name {event_obj.name} as it was already seen."
-                )
-        except Exception as e:
-            engine = ctx.obj["engine"]
-            id = add_event(
-                engine,
-                event=None,
-                original_text=event,
-                failure_reason=str(e),
-                filename=ingestable_article_file.name,
-                version=version,
-            )
-            logger.error(f"Error processing event {id}")
-            logger.exception(e)
-            if num_errors > max_acceptable_errors:
-                typer.echo(
-                    f"Too many errors. Stopping processing. Please fix the errors and run the command again."
-                )
-                return
-            num_errors += 1
-            continue
-    logger.info(f"Done processing all events with {num_errors} errors.")
+    for event in driver_gen:
+        if isinstance(event, EventNode):
+            yield event
+        else:
+            # NOTE(Ref1): this is where we would add the HIL bit.
+            raise NotImplementedError("Only EventNode is supported for now.")
 
 
+# This will become a *config* later.
 ALLOWED_FUNCTIONS = {
     "create_event": create_event,
 }
+
+
+def call_ai_generated_function_for_event(ai_message: MessageNode) -> Tuple[Optional[Event], Optional[str]]:
+ 
+    content = ai_message.message_content
+
+    logger.debug(content)  # Typically empty if there is a function call.
+    function_call = {}
+    if ai_message.ai_function_call is not None:
+        function_call = ai_message.ai_function_call.model_dump()
+    fn_name = function_call.get("name", None)
+    fn_args = json.loads(function_call.get("arguments", "{}"))
+
+    # NOTE: This step could be used to create training data for a future model to do this better.
+    event_obj = None
+    if fn_name and fn_name in ALLOWED_FUNCTIONS:
+        event_obj = ALLOWED_FUNCTIONS[fn_name](**fn_args)
+
+        logger.debug(
+            _optionally_format_colorama("Parsed event:", True, Fore.RED)
+        )
+        logger.debug(
+            "\n".join(
+                [
+                    f"{k}: {str(v)} ({type(v)})"
+                    for k, v in formatted_dict(asdict(event_obj)).items()
+                ]
+            )
+        )
+        # The object returned by the function must have a reasonable __str__ to be useful.
+        return event_obj, f"{fn_name}({str(event_obj)})"
+    else:
+        logger.warn(
+            f"*** No function name found or not in Allowed functions list: {','.join(ALLOWED_FUNCTIONS.keys())}! for event"
+        )
+        logger.warn(f"Last message recieved from AI: {content}")
+    return None, None
 
 
 def _event_gen(ingestable_article_file: Path):
@@ -395,7 +434,7 @@ def _event_gen(ingestable_article_file: Path):
         # split the text on the $$ delimiter using regex and strip leading and trailing newlines, whitespaces
         # TODO: Replace with a yield function
         events = [
-            event.strip() for event in re.split(r"\n+\$\$\$\n+", all_text)
+            event.strip() for event in re.split(r"\$\$\$", all_text)
         ]
         ask_user_helper(
             "There are {events} events in the file with an average of {avg} tokens per event.",
@@ -409,100 +448,6 @@ def _event_gen(ingestable_article_file: Path):
         if not would_you_like_to_continue():
             return None
     return events
-
-
-def _parse_events(
-    ai: AI, base_messages: List[Dict[str, str]], event: str
-) -> Optional[Event]:
-    """
-    This function will take the event text and parse it into an Event object using AI
-    If event is not parsed we leave it to the caller to decide what to do with it.
-
-    TODO: Replace hoboken_girl_event_function_param with a generic Callable.
-    TODO: Write a test to mock out the AI and test various values for messages.
-    """
-    messages = ai.next(
-        base_messages,
-        f"""
-            Process the following event in backticks according to the instructions provided previously.
-            ```
-            {event}
-            ```
-        """,
-        function=hoboken_girl_event_function_param(),
-        explicitly_call=True,
-    )
-    content = messages[-1]["content"]
-
-    logger.debug(content)  # Typically empty if there is a function call.
-    function_call = json.loads(messages[-1].get("function_call", "{}"))
-    fn_name = function_call.get("name")
-    fn_args = json.loads(function_call.get("arguments", "{}"))
-
-    # NOTE: This step could be used to create training data for a future model to do this better.
-    event_obj = None
-    if fn_name and fn_name in ALLOWED_FUNCTIONS:
-        event_obj = ALLOWED_FUNCTIONS[fn_name](**fn_args)
-        logger.debug(
-            f"{_optionally_format_colorama('Raw event:', True, Fore.RED)}\n{event}"
-        )
-        logger.debug(
-            _optionally_format_colorama("Parsed event:", True, Fore.RED)
-        )
-        logger.debug(
-            "\n".join(
-                [
-                    f"{k}: {str(v)} ({type(v)})"
-                    for k, v in formatted_dict(asdict(event_obj)).items()
-                ]
-            )
-        )
-    else:
-        logger.warn(
-            f"*** No function name found or not in Allowed functions list: {','.join(ALLOWED_FUNCTIONS.keys())}! for event: \n{event}"
-        )
-        logger.warn(f"Last message recieved from AI: {content}")
-    return event_obj
-
-
-def events_gen(filename: str, n_expected_events: int) -> Generator:
-    # Write a function that accepts a filename and returns a generator that yields one event at a time.
-
-    with open(filename, "r") as f:
-        all_lines = f.readlines()
-        data = "\n".join(all_lines)
-        event_groups = data.split("\n\n$$\n\n")
-        assert len(event_groups) == n_expected_events  # Safety check
-        for event_string in event_groups:
-            yield event_string
-
-
-def system_prompt(db: DB):
-    """
-    TODO: Write a function that will use the file hoboken_girl_prompt.txt to generate a system prompt for the user.
-    db: DB object that reads the file containing the prompt
-    it will return a list of
-    """
-    functions = [
-        {
-            "name": "create_event",
-            "description": "Get the current weather in a given location",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "The city and state, e.g. San Francisco, CA",
-                    },
-                    "unit": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],
-                    },
-                },
-                "required": ["location"],
-            },
-        }
-    ]
 
 
 app.command()(index_moods)

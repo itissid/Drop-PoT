@@ -1,15 +1,17 @@
 import datetime
 import enum
 import logging
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import List, Optional
 
 from main.utils.extraction_utils import flatten_list
 
 logger = logging.getLogger(__name__)
 
+
 class PaymentMode(enum.Enum):
-    ticket = 1  # Ticketed events like art shows, concerts, networking events and courses.
+    # Ticketed events like art shows, concerts, networking events and courses.
+    ticket = 1
     paid_membership = 2  # Wellness, Subscription packages etc.
     appointment = (
         3  # Appointments like Botox, Dental Cleaning, Cosmetic Surgery etc.
@@ -62,14 +64,18 @@ class Event:
         default=None,
     )
     links: Optional[List[str]] = field(default=None)
+
+    def __str__(self):
+        return ', '.join([k+'='+str(v) for k, v in asdict(self).items()])
+
     def __post_init__(self):
         if not self.is_ongoing and self.start_date is None:
             logger.warn(
-                "Event start date not mentioned but the event is possibly not ongoing."
+                "Event start date not mentioned but the event is not ongoing."
             )
-        if not self.is_paid and self.payment_mode is None:
+        if self.is_paid and self.payment_mode is None:
             raise ValueError("Payment mode is required if the event is paid.")
-        
+
         if self.addresses:
             self.addresses = flatten_list(self.addresses)
         if self.categories:
@@ -130,6 +136,7 @@ def create_event(
         payment_details=payment_details,
         links=links,
     )
+
 
 def sort_alphabet_list_reverse(lst: List[str]) -> List[str]:
     return sorted(lst, reverse=True)
