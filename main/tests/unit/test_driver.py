@@ -6,7 +6,7 @@ import time_uuid
 
 from main.hoboken_girl_extraction import hoboken_girl_driver_wrapper
 from main.model.ai_conv_types import EventNode, MessageNode, Role
-from main.utils.ai import AIDriver
+from main.lib.ai import AIDriver
 
 # def test_is_history_maintained():
 #     pass
@@ -15,7 +15,7 @@ from main.utils.ai import AIDriver
 class TestAIDriver(unittest.TestCase):
 
     # Modify the module path to the actual path.
-    @patch("main.utils.ai.AltAI", autospec=True)
+    @patch("main.lib.ai.AltAI", autospec=True)
     def test_drive_order_of_context_messages(self, MockedAltAI):
         # Mock the AI's response. You might want to mock more responses based on the events you send in.
         print('test_drive_order_of_context_messages')
@@ -71,7 +71,7 @@ class TestAIDriver(unittest.TestCase):
                          for i in contexts_captured[0]], [i.model_dump(exclude="id") for i in final_context])
         self.assertEqual(len(contexts_captured[0]), 2)
 
-    @patch("main.utils.ai.AltAI", autospec=True)
+    @patch("main.lib.ai.AltAI", autospec=True)
     @patch("main.hoboken_girl_extraction.hoboken_girl_event_function_param")
     @patch("main.hoboken_girl_extraction.default_parse_event_prompt")
     def test_driver_wrapper(self, mock_event_prompt_fn, mock_event_function_param, MockedAltAI):

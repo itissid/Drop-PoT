@@ -6,9 +6,9 @@ import ipdb
 import openai
 from dotenv import load_dotenv
 
-from main.model.ai_conv_types import (EventNode, MessageNode, Role,
+from main.model.ai_conv_types import (MessageNode, Role,
                                       UserExplicitFunctionCall)
-from main.utils.ai import AIDriver, AltAI, driver_wrapper
+from main.lib.ai import AIDriver, AltAI, driver_wrapper
 
 
 def get_current_weather(location, unit="fahrenheit"):

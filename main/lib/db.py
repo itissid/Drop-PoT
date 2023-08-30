@@ -27,7 +27,7 @@ from typing import Union
 class DB:
     """A simple key-value store, where keys are filenames and values are file contents."""
 
-    def __init__(self, path: Path|str):
+    def __init__(self, path: Union[Path, str]):
         self.path = Path(path).absolute()
 
         self.path.mkdir(parents=True, exist_ok=True)
@@ -54,7 +54,7 @@ class DB:
 # dataclass for all dbs:
 @dataclass
 class DBs:
-    logs: DB # Write logs containing transcripts with GPT
-    ingestion_documents: DB # given a name knows how to load/store documents for scraping.    
-    prompts: DB # Knows how to read in prompts that are configured.
-
+    logs: DB  # Write logs containing transcripts with GPT
+    # given a name knows how to load/store documents for scraping.
+    ingestion_documents: DB
+    prompts: DB  # Knows how to read in prompts that are configured.
