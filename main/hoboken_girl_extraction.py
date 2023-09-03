@@ -17,6 +17,9 @@ from main.commands.embedding_commands import demo_retrieval  # index_events,
 from main.commands.embedding_commands import (index_event_embeddings,
                                               index_mood_embeddings,
                                               index_moods)
+from main.hoboken_girl.function_call import hoboken_girl_event_function_param
+from main.lib.ai import AIDriver, AltAI, driver_wrapper
+from main.lib.db import DB
 from main.model.ai_conv_types import EventNode, MessageNode, Role
 from main.model.mood_model import Base as MoodBase
 from main.model.persistence_model import Base as PersistenceBase
@@ -24,14 +27,11 @@ from main.model.persistence_model import (
     ParsedEventTable, add_event, get_column_by_version_and_filename,
     get_num_events_by_version_and_filename)
 from main.model.types import Event, create_event
-from main.utils.ai import AIDriver, AltAI, driver_wrapper
 from main.utils.cli_utils import (_optionally_format_colorama, ask_user_helper,
                                   choose_file, formatted_dict,
                                   would_you_like_to_continue)
-from main.utils.db import DB
 from main.utils.prompt_utils import (base_prompt_hoboken_girl,
-                                     default_parse_event_prompt,
-                                     hoboken_girl_event_function_param)
+                                     default_parse_event_prompt)
 from main.utils.scraping import get_documents
 
 app = typer.Typer()
@@ -308,6 +308,7 @@ def extract_serialize_events(
     )
     for event_node, event in hoboken_girl_driver_wrapper(events, system_message, ai_driver):
         # TODO(Ref1): Serialize the event_node to db
+
         print(event_node, event)
 
     # TODO (Ref1): Create messages using the MessageNode class.
@@ -353,7 +354,7 @@ def hoboken_girl_driver_wrapper(
         ai_driver: AIDriver,
         message_content_callable=lambda event_node: default_parse_event_prompt(
             event=event_node.raw_event_str),
-        function_call_spec_callable=lambda: hoboken_girl_event_function_param(),
+        function_call_spec_callable=hoboken_girl_event_function_param,
         function_callable_for_ai_function_call=lambda ai_message: call_ai_generated_function_for_event(
             ai_message),
         interrogation_callback: Callable[[
@@ -391,7 +392,7 @@ ALLOWED_FUNCTIONS = {
 
 
 def call_ai_generated_function_for_event(ai_message: MessageNode) -> Tuple[Optional[Event], Optional[str]]:
- 
+
     content = ai_message.message_content
 
     logger.debug(content)  # Typically empty if there is a function call.

@@ -33,7 +33,9 @@ from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
                       wait_random_exponential)
 
 from main.model.ai_conv_types import (AIFunctionCall, EventNode, MessageNode,
-                                      Role)
+                                      OpenAIFunctionCallSpec, Role,
+                                      UserExplicitFunctionCall,
+                                      UserFunctionCallMode)
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +110,7 @@ def driver_wrapper(
         # https://platform.openai.com/docs/guides/gpt/function-calling
         # TODO: Make these types less verbose.
         function_call_spec_callable: Callable[[
-        ], Tuple[Optional[List[Dict[str, Any]]], Optional[Union[Dict[str, str], str]]]],
+        ], Tuple[Optional[OpenAIFunctionCallSpec], Union[UserExplicitFunctionCall, UserFunctionCallMode]]],
         # A callback to get the result of the function that the AI recommended you call.
         function_callable_for_ai_function_call: Callable[[
             MessageNode], Tuple[Optional[Any], Optional[str]]],
@@ -168,7 +170,7 @@ def driver_wrapper(
                 # User is now conversing with the AI, trying to get it to fix its responses.
                 while interrogation_message is not None:
                     assert interrogation_message.role == Role.user
-                    # TestMe: Is function calling working here? 
+                    # TestMe: Is function calling working here?
                     ai_message = driver_gen.send(interrogation_message)
                     event_node.history.append(interrogation_message)
                     assert isinstance(

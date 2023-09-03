@@ -1,10 +1,11 @@
 import enum
 import json
 import logging
+from abc import abstractmethod
 from typing import Any, Dict, Generator, List, Optional, Union
 
 import time_uuid
-from pydantic import UUID1, BaseModel, Field, Json
+from pydantic import UUID1, BaseModel, Field, Json, validator
 
 from main.model.types import Event
 
@@ -43,8 +44,37 @@ class AIFunctionCall(BaseModel):
     arguments: Optional[Json] = None
 
 
+class UserFunctionCallMode(enum.Enum):
+    none = "none"
+    auto = "auto"
+
+
 class UserExplicitFunctionCall(BaseModel):
     name: str
+
+
+class OpenAIFunctionCallProperty(BaseModel):
+    type: str
+    # Use print(property.dict(exclude_none=True)) to exclude Optional fields.
+    items: Optional['OpenAIFunctionCallProperty'] = None
+    enum: Optional[List[str]] = None
+
+    @validator('items', 'enum', pre=True, allow_reuse=True)
+    def prevent_none(cls, v):
+        assert v is not None, '`items` and `enum` may not be None'
+        return v
+
+
+class OpenAIFunctionCallParameters(BaseModel):
+    type: str
+    properties: Dict[str, OpenAIFunctionCallProperty]
+    required: List[str]
+
+
+class OpenAIFunctionCallSpec(BaseModel):
+    name: str
+    description: str
+    parameters: OpenAIFunctionCallParameters
 
 
 class MessageNode(BaseModel):
@@ -62,8 +92,9 @@ class MessageNode(BaseModel):
 
     # To support OpenAI function call API
     # Set for user when they want API to call a function.
-    functions: Optional[List[Dict[str, Any]]] = None
-    explicit_fn_call: Optional[Union[UserExplicitFunctionCall, str]] = None
+    functions: Optional[List[OpenAIFunctionCallSpec]] = None
+    explicit_fn_call: Optional[Union[UserExplicitFunctionCall,
+                                     UserFunctionCallMode]] = None
     # Set when AI calls a function.
     ai_function_call: Optional[AIFunctionCall] = None
     # set for role: function from user's call to the function. Mainly used for replay or further interrogating.
@@ -142,13 +173,14 @@ class EventNode(BaseModel):
                     "content": message.message_content,
                 }
                 if message.functions:
-                    msg["functions"] = message.functions
+                    msg["functions"] = [fn.model_dump(
+                        exclude_none=True) for fn in message.functions]
                 yield msg
             elif context[0].role == Role.assistant:
                 raise ValueError(
                     "The first message is not allowed to be an assistant message!")
             elif context[0].role == Role.system:
-                yield EventNode.fsystem(message.message_content)
+                yield EventNode.fsystem(message.message_content if message.message_content else '')
             else:
                 raise ValueError(
                     f"Unexpected role {context[0].role} in message history of length 1")
@@ -266,10 +298,13 @@ class EventNode(BaseModel):
                 "content": context[-1].message_content,
             }
             if context[-1].functions:
-                msg["functions"] = context[-1].functions
+                msg["functions"] = [function.model_dump(
+                    exclude_none=True) for function in context[-1].functions]
+                assert context[
+                    -1].explicit_fn_call is not None, "Call mode must be set to be 'auto', 'none' or {'name': <function_name>}"
                 msg["explicit_fn_call"] = (context[-1].explicit_fn_call.model_dump()
                                            if isinstance(context[-1].explicit_fn_call, UserExplicitFunctionCall)
-                                           else context[-1].explicit_fn_call)
+                                           else context[-1].explicit_fn_call.value)
             yield msg
         elif context[-1].role == Role.assistant:
             msg = {
@@ -301,3 +336,11 @@ class EventNode(BaseModel):
         elif context[-1].role == Role.function:
             logger.info(
                 "Function role was generated in the last iteration already.")
+
+
+class InterrogationProtocol:
+    @abstractmethod
+    def get_interrogation_message(self, event: EventNode) -> Optional[MessageNode]:
+        ...
+
+    pass

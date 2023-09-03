@@ -91,8 +91,9 @@ class Event:
         if self.links:
             self.links = flatten_list(self.links)
 
-
 # Maybe there is a better way to do this
+
+
 def create_event(
     name: str,
     description: str,

@@ -6,9 +6,11 @@ import ipdb
 import openai
 from dotenv import load_dotenv
 
-from main.model.ai_conv_types import (MessageNode, Role,
-                                      UserExplicitFunctionCall)
 from main.lib.ai import AIDriver, AltAI, driver_wrapper
+from main.model.ai_conv_types import MessageNode, OpenAIFunctionCallParameters
+from main.model.ai_conv_types import OpenAIFunctionCallProperty as p
+from main.model.ai_conv_types import (OpenAIFunctionCallSpec, Role,
+                                      UserExplicitFunctionCall)
 
 
 def get_current_weather(location, unit="fahrenheit"):
@@ -58,7 +60,7 @@ class TestSendToOpenAIAPI(unittest.TestCase):
         self.assertGreaterEqual(len(event.history[2].message_content), 1)
 
         print(event.history[2].message_content)
-        # No function call 
+        # No function call
         self.assertEqual(event.history[2].ai_function_call, None)
 
     def test_event_to_open_ai__user_function_mandate_is_obeyed(self):
@@ -73,23 +75,21 @@ class TestSendToOpenAIAPI(unittest.TestCase):
         api_key = os.getenv("OPENAI_API_KEY")
         openai.api_key = api_key
 
-        functions = [
-            {
-                "name": "get_current_weather",
-                "description": "Get the current weather in a given location",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "The city and state, e.g. San Francisco, CA",
-                        },
-                        "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
-                    },
-                    "required": ["location"],
-                },
-            }
-        ]
+        functions = [OpenAIFunctionCallSpec(
+            name="get_current_weather",
+            description="Get the current weather in a given location",
+            parameters=OpenAIFunctionCallParameters(
+                type="object",
+                properties=dict(
+                    location=p(
+                        type="string",
+                        description="The city and state, e.g. San Francisco, CA",
+                    ),
+                    unit=p(type="string", enu=["celsius", "fahrenheit"]),
+                ),
+                required=["location"],
+            )
+        )]
 
         def weather_fn_call_wrapper(ai_message: MessageNode):
             assert ai_message.ai_function_call is not None and ai_message.ai_function_call.arguments is not None
@@ -105,9 +105,9 @@ class TestSendToOpenAIAPI(unittest.TestCase):
             ),
             ai_driver=AIDriver(AltAI(model="gpt-3.5-turbo-16k")),
             message_content_callable=lambda x: x.raw_event_str,
-            function_call_spec_callable=lambda: (functions, {
-                "name": "get_current_weather"
-            }),
+            function_call_spec_callable=lambda: (functions, UserExplicitFunctionCall(
+                name="get_current_weather",
+            )),
             function_callable_for_ai_function_call=lambda ai_message: weather_fn_call_wrapper(
                 ai_message)
         )
