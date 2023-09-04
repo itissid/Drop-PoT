@@ -28,8 +28,9 @@ I think serving images fast via a CDN is a key challenge for UX. But what more s
 # For model improvement 
 ## Data scraping
 Two things here are key:
-- We want to know how our toy model performs in terms of quality/
+- We want to know how our toy model performs in terms of quality.
 - We want to define a quality metric for improving this model.
+- Find scrapers for Google Restaurant/Facebook/Insta pages which we can use for getting Place review data.
 
 1. The data: Venky and I will work on ingesting it into the framework then try generate some moods from chatGPT and index
 them into our database and check them manually. 

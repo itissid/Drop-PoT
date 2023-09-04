@@ -1,12 +1,11 @@
 
-from typing import List, Tuple
 import typing
+from typing import List, Tuple
 
-from main.model.ai_conv_types import (OpenAIFunctionCallParameters,
-                                      OpenAIFunctionCallSpec,
-                                      OpenAIFunctionCallProperty as p,
+from main.model.ai_conv_types import OpenAIFunctionCallParameters
+from main.model.ai_conv_types import OpenAIFunctionCallProperty as p
+from main.model.ai_conv_types import (OpenAIFunctionCallSpec,
                                       UserExplicitFunctionCall)
-
 
 
 def hoboken_girl_event_function_param_spec() -> List[OpenAIFunctionCallSpec]:

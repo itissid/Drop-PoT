@@ -5,8 +5,8 @@ import pytest
 import time_uuid
 
 from main.hoboken_girl_extraction import hoboken_girl_driver_wrapper
-from main.model.ai_conv_types import EventNode, MessageNode, Role
 from main.lib.ai import AIDriver
+from main.model.ai_conv_types import EventNode, MessageNode, Role
 
 # def test_is_history_maintained():
 #     pass
@@ -77,7 +77,7 @@ class TestAIDriver(unittest.TestCase):
     def test_driver_wrapper(self, mock_event_prompt_fn, mock_event_function_param, MockedAltAI):
         """
         Send a list of events to the driver wrapper, the system_messge and a real AIDriver.
-        Asserr that the yielded EventNode has the messages
+        Assert that the yielded EventNode has the messages. No function calls
         """
         print('test_driver_wrapper')
         _stub_uuid = time_uuid.TimeUUID.with_utcnow()
@@ -106,7 +106,7 @@ class TestAIDriver(unittest.TestCase):
 
         self.assertEqual(mock_event_prompt_fn.call_count, 1)
         mock_event_prompt_fn.assert_called_with(event="test_event1")
-        self.assertEqual(mock_event_function_param.call_count, 1)
+        self.assertEqual(mock_event_function_param.call_count, 0)
 
         self.assertEqual(event_node.raw_event_str, "test_event1")
         self.assertEqual(event_node.history[0].role, Role.system)
@@ -124,7 +124,7 @@ class TestAIDriver(unittest.TestCase):
         with self.assertRaises(StopIteration):
             next(driver_wrapper_gen)
 
-    @patch("main.utils.ai.AltAI", autospec=True)
+    @patch("main.lib.ai.AltAI", autospec=True)
     @patch("main.hoboken_girl_extraction.hoboken_girl_event_function_param")
     @patch("main.hoboken_girl_extraction.default_parse_event_prompt")
     def test_driver_for_multiple_events(self, mock_event_prompt_fn, mock_event_function_param, MockedAltAI):
@@ -165,7 +165,7 @@ class TestAIDriver(unittest.TestCase):
         self.assertEqual(
             event_node_2.history[1].message_content, "You need to parse test_event2")
 
-    @patch("main.utils.ai.AltAI", autospec=True)
+    @patch("main.lib.ai.AltAI", autospec=True)
     @patch("main.hoboken_girl_extraction.hoboken_girl_event_function_param")
     @patch("main.hoboken_girl_extraction.default_parse_event_prompt")
     def test_interrogation(self, mock_event_prompt_fn, mock_event_function_param, MockedAltAI):
@@ -205,16 +205,20 @@ class TestAIDriver(unittest.TestCase):
         self.assertEqual(len(event_node.history), 5)
         self.assertEqual(event_node.raw_event_str, "test_event1")
         self.assertEqual(event_node.history[3].role, Role.user)
-        self.assertEqual(event_node.history[3].message_content, "Are you high?")
+        self.assertEqual(
+            event_node.history[3].message_content, "Are you high?")
         self.assertEqual(event_node.history[4].role, Role.assistant)
-        self.assertEqual(event_node.history[4].message_content, "Assistant Response")
+        self.assertEqual(
+            event_node.history[4].message_content, "Assistant Response")
 
-        self.assertEqual(mock_interrogation_callback.call_count, 2) # Second time this message was null
+        # Second time this message was null
+        self.assertEqual(mock_interrogation_callback.call_count, 2)
 
         print("Calling next(driver_wrapper_gen)")
         event_node_2 = next(driver_wrapper_gen)
         self.assertIsInstance(event_node_2, EventNode)
         self.assertEqual(len(event_node_2.history), 3)
         self.assertEqual(event_node_2.raw_event_str, "test_event2")
-        self.assertEqual(event_node_2.history[1].message_content, "You need to parse test_event2")
+        self.assertEqual(
+            event_node_2.history[1].message_content, "You need to parse test_event2")
         self.assertEqual(mock_interrogation_callback.call_count, 3)

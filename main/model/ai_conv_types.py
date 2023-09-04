@@ -58,6 +58,7 @@ class OpenAIFunctionCallProperty(BaseModel):
     # Use print(property.dict(exclude_none=True)) to exclude Optional fields.
     items: Optional['OpenAIFunctionCallProperty'] = None
     enum: Optional[List[str]] = None
+    description: Optional[str] = None
 
     @validator('items', 'enum', pre=True, allow_reuse=True)
     def prevent_none(cls, v):
@@ -95,7 +96,7 @@ class MessageNode(BaseModel):
     functions: Optional[List[OpenAIFunctionCallSpec]] = None
     explicit_fn_call: Optional[Union[UserExplicitFunctionCall,
                                      UserFunctionCallMode]] = None
-    # Set when AI calls a function.
+    # Set when AI calls a function with the name and arguments.
     ai_function_call: Optional[AIFunctionCall] = None
     # set for role: function from user's call to the function. Mainly used for replay or further interrogating.
     ai_function_call_result_name: Optional[str] = None

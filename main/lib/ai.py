@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import openai
 from colorama import Fore
@@ -32,7 +32,8 @@ from pydantic import UUID1, BaseModel, Field, Json
 from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
                       wait_random_exponential)
 
-from main.model.ai_conv_types import (AIFunctionCall, EventNode, MessageNode,
+from main.model.ai_conv_types import (AIFunctionCall, EventNode,
+                                      InterrogationProtocol, MessageNode,
                                       OpenAIFunctionCallSpec, Role,
                                       UserExplicitFunctionCall,
                                       UserFunctionCallMode)
@@ -109,15 +110,14 @@ def driver_wrapper(
         # A callback that gets you the function call spec for passing to OpenAI:
         # https://platform.openai.com/docs/guides/gpt/function-calling
         # TODO: Make these types less verbose.
-        function_call_spec_callable: Callable[[
-        ], Tuple[Optional[OpenAIFunctionCallSpec], Union[UserExplicitFunctionCall, UserFunctionCallMode]]],
+        function_call_spec_callable: Optional[Callable[[
+        ], Tuple[Optional[List[OpenAIFunctionCallSpec]], Union[UserExplicitFunctionCall, UserFunctionCallMode]]]] = None,
         # A callback to get the result of the function that the AI recommended you call.
-        function_callable_for_ai_function_call: Callable[[
-            MessageNode], Tuple[Optional[Any], Optional[str]]],
-        interrogation_callback: Callable[[
-            EventNode], Optional[MessageNode]] = lambda x: None
+        function_callable_for_ai_function_call: Optional[Callable[[
+            MessageNode], Tuple[Any, str]]] = None,
+        interrogation_callback: Optional[InterrogationProtocol] = None,
 
-):
+) -> Generator:
     """
     Drives the AIDriver by sending it a System message + User message at first then 
     it can send .
@@ -148,11 +148,15 @@ def driver_wrapper(
 
             print('PreSend')
             ai_message = driver_gen.send([system_message, user_message])
+            assert isinstance(ai_message, MessageNode)
             print('PostSend')
 
             event_node.history.append(ai_message)
 
             if ai_message.ai_function_call:
+                assert function_callable_for_ai_function_call is not None, (
+                    "AI wants to call a function but no user function to call one was provided."
+                )
                 fn_call_result, fn_call_result_str = function_callable_for_ai_function_call(
                     ai_message)
                 event_node.history.append(MessageNode(
@@ -166,7 +170,8 @@ def driver_wrapper(
             print(f"Got message from AI:\n {ai_message.message_content}")
             # Human interaction with AI if set is managed here.
             if interrogation_callback is not None:
-                interrogation_message = interrogation_callback(event_node)
+                interrogation_message = interrogation_callback.get_interrogation_message(
+                    event_node)
                 # User is now conversing with the AI, trying to get it to fix its responses.
                 while interrogation_message is not None:
                     assert interrogation_message.role == Role.user
@@ -177,7 +182,8 @@ def driver_wrapper(
                         ai_message, MessageNode) and ai_message.role == Role.assistant
 
                     event_node.history.append(ai_message)
-                    interrogation_message = interrogation_callback(event_node)
+                    interrogation_message = interrogation_callback.get_interrogation_message(
+                        event_node)
             yield event_node
             event_node = driver_gen.send(None)
 
@@ -215,7 +221,7 @@ class AltAI:
                 i for i in EventNode.context_to_openai_api_messages(context)]
             functions = None
             explicit_fn_call = None
-            # N2S(Ref1): Move the allowed roles with functions to a config
+            # N2S(Ref1): Move the allowed roles with functions to a config about what roles call functions.
             if context_messages[-1].get("role", None) == Role.user.name:
                 if "functions" in context_messages[-1]:
                     # Only call the function if it was the last guy.

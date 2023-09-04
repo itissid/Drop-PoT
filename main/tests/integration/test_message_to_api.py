@@ -1,13 +1,16 @@
 import json
 import os
 import unittest
+from typing import Any, List, Optional, Tuple
 
 import ipdb
 import openai
 from dotenv import load_dotenv
 
 from main.lib.ai import AIDriver, AltAI, driver_wrapper
-from main.model.ai_conv_types import MessageNode, OpenAIFunctionCallParameters
+from main.model.ai_conv_types import (EventNode, InterrogationProtocol,
+                                      MessageNode,
+                                      OpenAIFunctionCallParameters)
 from main.model.ai_conv_types import OpenAIFunctionCallProperty as p
 from main.model.ai_conv_types import (OpenAIFunctionCallSpec, Role,
                                       UserExplicitFunctionCall)
@@ -35,9 +38,7 @@ class TestSendToOpenAIAPI(unittest.TestCase):
         # Mock out the call to AI and extract the messages and make sure the
         pass
 
-    def test_no_function_execution(self):
-        """
-        """
+    def test_no_function_execution(self) -> None:
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
         openai.api_key = api_key
@@ -63,7 +64,7 @@ class TestSendToOpenAIAPI(unittest.TestCase):
         # No function call
         self.assertEqual(event.history[2].ai_function_call, None)
 
-    def test_event_to_open_ai__user_function_mandate_is_obeyed(self):
+    def test_event_to_open_ai__user_function_mandate_is_obeyed(self) -> None:
         """If MessageNode.role == user and MessageNode.message_function_call and MessageNode.explicit_function_call_spec are not null then the 
         next message must have a role `function` with call result. The message after that is  an assistant message.
 
@@ -85,13 +86,13 @@ class TestSendToOpenAIAPI(unittest.TestCase):
                         type="string",
                         description="The city and state, e.g. San Francisco, CA",
                     ),
-                    unit=p(type="string", enu=["celsius", "fahrenheit"]),
+                    unit=p(type="string", enum=["celsius", "fahrenheit"]),
                 ),
                 required=["location"],
             )
         )]
 
-        def weather_fn_call_wrapper(ai_message: MessageNode):
+        def weather_fn_call_wrapper(ai_message: MessageNode) -> Tuple[Any, str]:
             assert ai_message.ai_function_call is not None and ai_message.ai_function_call.arguments is not None
             return get_current_weather(
                 location=ai_message.ai_function_call.arguments.get("location"),

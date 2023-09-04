@@ -1,5 +1,6 @@
+
 ## USER
-IN pydantic give some of the advantage of the JSON Schema generation specifically 
+In pydantic give some of the advantage of the JSON Schema generation specifically 
 
 1. How can one create self documentiong APIs? Give an example of how to create such documentation? Do I need additional steps in doc generation?
 2. What Kind of tooling that support JSON Schema do developers use? Give practical examples from the field
