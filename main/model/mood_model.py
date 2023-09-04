@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
 from jsonpath_ng import parse
-from model.mood_seed import GEN_Z, GEN_Z_HOBOKEN, GEN_Z_NYC, MILLENIALS
+from main.model.mood_seed import GEN_Z, GEN_Z_HOBOKEN, GEN_Z_NYC, MILLENIALS
 from sqlalchemy import (Column, Engine, ForeignKey, Integer, LargeBinary,
                         String, Text, UniqueConstraint, and_, text)
 from sqlalchemy.ext.declarative import declarative_base

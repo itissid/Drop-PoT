@@ -1,15 +1,20 @@
+import abc
+import json
+import logging
+from abc import ABC, ABCMeta
+from typing import Any, Dict, List, NewType, Optional, Union, cast
+
+import click
 import colorama
 import typer
-import json
-import click
-from typing import Any, Dict, List, Optional, Union, cast
 from colorama import Fore
-from typing import NewType
-import logging 
 
 app = typer.Typer()
 
 logger = logging.getLogger(__name__)
+
+
+
 
 class CustomDict:
     def __init__(self, value: Dict[str, str]):
@@ -27,11 +32,31 @@ class CustomDictParser(click.ParamType):
 
 
 def edit_dict(
-    data: Dict[str, Union[str, int, float, List[Union[str, int, float]]]]
+    data: Dict[str, Optional[Union[str, int, float, List[Union[str, int, float]]]]]
 ):
+    """
+    Given a data dictionary, ask the user if they want to edit any value of the dictionary.
+    Return edited dictionary. The type of the edited value does not matter.
+    """
     typer.echo("The event is:")
     _pp(data)
     edits = {}
+
+    def _infer_to_type(val: str):
+        """
+        Given a string val, return the appropriate type after converting it to one of: float, int, str, List[Union[float, int, str]]
+        If val has , then assume its a list else try converting it to float, int, str in that order.
+        """
+        if ',' in val:
+            return [_infer_to_type(i.strip()) for i in val.split(",")]
+        else:
+            if val.isdigit():
+                return int(val)
+            try:
+                float_value = float(val)
+                return float_value
+            except ValueError:
+                return str(val)
 
     while True:
         typer.echo("Enter a key to edit a key (or 'exit' when you are done):")
@@ -46,29 +71,20 @@ def edit_dict(
         typer.echo(
             f"Current value: {_optionally_format_colorama(str(value_before), True, Fore.BLUE)}"
         )
-        typer.echo("Enter the new value (or 'exit' to finish):")
 
-        if isinstance(value_before, list):
-            typer.echo(
-                "Enter a comma-separated list without spaces, No `[`, `]` braces]"
-            )
-            new_val = typer.prompt("New value")
-            if new_val.lower() == "exit":
-                break
-            try:
-                value_after = [
-                    type(value_before[0])(i) for i in new_val.split(",")
-                ]
-            except ValueError as e:
-                typer.echo(
-                    f"{_optionally_format_colorama('Error. Try again', True, Fore.RED)} \n{_optionally_format_colorama(str(e), True, Fore.RED)}"
-                )
-                continue
-        else:
+        typer.echo(
+            "Enter the new value; for list types enter a CSV List without braces [ ] (or 'exit' to finish):")
+        try:
             value_before = cast(Union[str, int, float], value_before)
-            value_after = typer.prompt("New value", type=type(value_before))
-            if str(value_after).lower() == "exit":
-                break
+        except ValueError as e:
+            typer.echo(
+                f"{_optionally_format_colorama('Error. Try again', True, Fore.RED)} \n{_optionally_format_colorama(str(e), True, Fore.RED)}"
+            )
+            continue
+        value_after = typer.prompt("New value", value_proc=_infer_to_type)
+
+        if str(value_after).lower() == "exit":
+            break
 
         # Skip recording the edit if the value hasn't changed
         if value_after == value_before:
@@ -76,7 +92,8 @@ def edit_dict(
         else:
             _edit_dict = {key: value_after}
             typer.echo(
-                _optionally_format_colorama("New Dictionary:", True, Fore.GREEN)
+                _optionally_format_colorama(
+                    "New Dictionary:", True, Fore.GREEN)
             )
             _pp(data | _edit_dict)
             data[key] = value_after
@@ -98,6 +115,7 @@ def _pp(d: Dict) -> None:
         )
         typer.echo(f"{key}: {val} ({type(v)})")
 
+
 def formatted_dict(d: Dict) -> Dict:
     ret = {}
     for k, v in d.items():
@@ -109,6 +127,7 @@ def formatted_dict(d: Dict) -> Dict:
         )
         ret[key] = val
     return ret
+
 
 @app.command()
 def test_edit_dict():
@@ -131,37 +150,21 @@ def go_autopilot() -> bool:
     Use typer to ask a user to choose between autopilot or manual mode.
     If autopilot return truue
     """
-    user_option = typer.prompt(
-        "Would you like to use the autopilot or manual mode? (autopilot/manual)",
-        default="autopilot",
-    )
-    while user_option.lower() not in ["autopilot", "manual"]:
-        typer.echo("Invalid input. Please enter 'autopilot' or 'manual'.")
-        user_option = typer.prompt(
-            "Would you like to use the autopilot or manual mode? (autopilot/manual)",
-        )
-    if user_option.lower() == "autopilot":
-        return True
-    elif user_option.lower() == "manual":
-        return False
-    return False
+    return get_user_option("Would you like to use the autopilot or manual mode? (autopilot/manual)",
+                           ["autopilot", "manual"], "autopilot") == "autopilot"
 
 
 def would_you_like_to_continue() -> bool:
-    user_option = typer.prompt(
-        "Would you like to use the continue or exit? (yes/exit)",
-        default="exit",
-    )
-    while user_option.lower() not in ["yes", "exit"]:
-        typer.echo("Invalid input. Please enter 'yes' or 'exit'.")
-        user_option = typer.prompt(
-            "Would you like to use the continue or exit? (yes/exit)",
-        )
-    if user_option.lower() == "yes":
-        return True
-    elif user_option.lower() == "exit":
-        return False
-    return False
+    return get_user_option("Would you like to continue or exit? (yes/exit)", ["yes", "exit"], "exit") == "yes"
+
+
+def get_user_option(prompt: str, options: list, default: str) -> str:
+    user_option = typer.prompt(prompt, default=default)
+    while user_option.lower() not in options:
+        typer.echo(
+            f"Invalid input. Please enter one of the following options: {', '.join(options)}.")
+        user_option = typer.prompt(prompt)
+    return user_option.lower()
 
 
 @app.command()
@@ -239,7 +242,8 @@ def validate_url_file_suggestions(
             user_input = typer.prompt("Your choice")
 
             while user_input not in file_names and user_input != "d":
-                typer.echo("Invalid input. Please enter 'a', 'b', 'c', or 'd'.")
+                typer.echo(
+                    "Invalid input. Please enter 'a', 'b', 'c', or 'd'.")
                 user_input = typer.prompt("Your choice")
 
             if user_input in file_names:
@@ -291,3 +295,4 @@ def choose_file(json_data: str) -> Dict[str, str]:
 
 if __name__ == "__main__":
     app()
+    

@@ -4,12 +4,13 @@ from dataclasses import asdict
 from typing import Dict, List, Optional
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
-from model.types import Event
 from sqlalchemy import (JSON, Column, Engine, ForeignKey, Integer, LargeBinary,
                         String, Text, func, text)
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
+
+from main.model.types import Event
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +184,9 @@ def get_parsed_events(engine: Engine, filename: str, version: str) -> List[Parse
     finally:
         session.close()
 
+# Note to self: What relationship do our document embeddings have with the Moods?
+# How do I add relationships between them so it is easy to retrieve them later?
+# How can I relate them to a person's input so that I can personalize what someone sees?
 def insert_parsed_event_embeddings(engine: Engine, events: List[Dict[str, str]]):
     Session = sessionmaker(bind=engine)
     session = Session()

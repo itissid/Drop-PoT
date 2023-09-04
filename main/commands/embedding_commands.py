@@ -6,17 +6,18 @@ from typing import Any, Dict, List, cast
 import typer
 from colorama import Fore
 from datasette_faiss import encode
-from model.mood_model import (Mood, MoodFlavors,
-                              generate_submoods_json_accessors,
-                              get_mood_json_entries,
-                              get_submood_embedding_text,
-                              insert_accessor_entries,
-                              insert_into_embeddings_table,
-                              insert_into_mood_json_table)
-from model.persistence_model import (get_parsed_events,
-                                     insert_parsed_event_embeddings)
-from utils.ai import EmbeddingSearch
-from utils.cli_utils import _optionally_format_colorama, _pp
+
+from main.lib.ai import EmbeddingSearch
+from main.model.mood_model import (Mood, MoodFlavors,
+                                   generate_submoods_json_accessors,
+                                   get_mood_json_entries,
+                                   get_submood_embedding_text,
+                                   insert_accessor_entries,
+                                   insert_into_embeddings_table,
+                                   insert_into_mood_json_table)
+from main.model.persistence_model import (get_parsed_events,
+                                          insert_parsed_event_embeddings)
+from main.utils.cli_utils import _optionally_format_colorama, _pp
 
 # TODO(Sid): Filter by th Submoods, place_or_activity text
 # 1. Generate embeddings for each mood and store them in a table(we don't need to train this)
@@ -70,7 +71,8 @@ def index_mood_embeddings(
     for mood in mood_flavor_to_index.get_moods_for_flavor():
         indexed_moods = get_mood_json_entries(
             mood.MOOD, mood_flavor_to_index, version, ctx.obj["engine"])
-        assert len(indexed_moods) == 1, f"There should be only one mood entry, there were {len(indexed_moods)}"
+        assert len(
+            indexed_moods) == 1, f"There should be only one mood entry, there were {len(indexed_moods)}"
         db_indexed_mood = indexed_moods[0]
         # Sanity check.
         _sanity_check_before_inserting_embeddings(
@@ -103,7 +105,11 @@ def _sanity_check_before_inserting_embeddings(sub_mood, db_indexed_submood):
             "The submoods from file and indexed into MoodJsonTable should be equal.")
 
 
-def index_event_embeddings(ctx: typer.Context, filename: str, version: str = typer.Option(
+def index_event_embeddings(
+        ctx: typer.Context,
+        filename: str = typer.Argument(
+            help='The filename which is a key in the DB. Check drop.db file'),
+        version: str = typer.Option(
         "v1",   help="The version of the embedding data. Just an arbitrary string.")):
     engine = ctx.obj["engine"]
     parsed_events = get_parsed_events(engine, filename, version)
@@ -128,8 +134,8 @@ def index_event_embeddings(ctx: typer.Context, filename: str, version: str = typ
 
 
 def demo_retrieval():
-    # Select a sub mood, 
+    # Select a sub mood,
     # Select a location with lat long in hoboken
     # compute distance between events and location
-    # 
+    #
     pass
