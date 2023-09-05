@@ -94,7 +94,6 @@ class AIDriver:
                     # print('....')
                     break
                 else:
-                    print(f'.....{interrogative_message}')
                     assert isinstance(
                         interrogative_message, MessageNode) and interrogative_message.role == Role.user
                     user_message_nodes = [interrogative_message]
@@ -232,8 +231,9 @@ class AltAI:
                 raise ValueError(
                     "Last message must be from user role. Msg Stream:"+'\n'.join([str(i) for i in context]))
             try:
-                # type: ignore
-                return send_fn(slf, context_messages, functions, explicit_fn_call)
+                val = send_fn(slf, context_messages, functions,
+                              explicit_fn_call)  # type: ignore
+                return val
             finally:
                 context_messages[-1]["functions"] = functions
                 context_messages[-1]["explicit_fn_call"] = explicit_fn_call

@@ -357,8 +357,8 @@ def hoboken_girl_driver_wrapper(
         function_call_spec_callable=hoboken_girl_event_function_param,
         function_callable_for_ai_function_call=lambda ai_message: call_ai_generated_function_for_event(
             ai_message),
-        interrogation_callback: Callable[[
-            EventNode], Optional[MessageNode]] = lambda event_node: None,
+        interrogation_callback: Optional[Callable[[
+            EventNode], Optional[MessageNode]]] = None,
 
 ) -> Generator[EventNode, None, None]:
 

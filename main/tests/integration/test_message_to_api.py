@@ -8,9 +8,7 @@ import openai
 from dotenv import load_dotenv
 
 from main.lib.ai import AIDriver, AltAI, driver_wrapper
-from main.model.ai_conv_types import (EventNode, InterrogationProtocol,
-                                      MessageNode,
-                                      OpenAIFunctionCallParameters)
+from main.model.ai_conv_types import MessageNode, OpenAIFunctionCallParameters
 from main.model.ai_conv_types import OpenAIFunctionCallProperty as p
 from main.model.ai_conv_types import (OpenAIFunctionCallSpec, Role,
                                       UserExplicitFunctionCall)

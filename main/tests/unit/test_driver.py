@@ -1,4 +1,5 @@
 import unittest
+from typing import Optional
 from unittest.mock import Mock, patch
 
 import pytest
@@ -6,7 +7,8 @@ import time_uuid
 
 from main.hoboken_girl_extraction import hoboken_girl_driver_wrapper
 from main.lib.ai import AIDriver
-from main.model.ai_conv_types import EventNode, MessageNode, Role
+from main.model.ai_conv_types import (EventNode, InterrogationProtocol,
+                                      MessageNode, Role)
 
 # def test_is_history_maintained():
 #     pass
@@ -169,14 +171,33 @@ class TestAIDriver(unittest.TestCase):
     @patch("main.hoboken_girl_extraction.hoboken_girl_event_function_param")
     @patch("main.hoboken_girl_extraction.default_parse_event_prompt")
     def test_interrogation(self, mock_event_prompt_fn, mock_event_function_param, MockedAltAI):
+
         print("test_driver_for_multiple_events")
         _stub_uuid = time_uuid.TimeUUID.with_utcnow()
-        mock_interrogation_callback = Mock()
-        mock_interrogation_callback.side_effect = [MessageNode(
-            message_content="Are you high?",
-            role=Role.user,
-            id=_stub_uuid,
-        ), None, None, None, None]
+
+        class MockInterrogationProtocol(InterrogationProtocol):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._i = 0
+                self.call_count = 0
+
+            def get_interrogation_message(self, event: EventNode) -> Optional[MessageNode]:
+                self.call_count += 1
+                if self._i == 0:
+                    self._i += 1
+                    return MessageNode(
+                        message_content="Are you high?",
+                        role=Role.user,
+                        id=_stub_uuid,
+                    )
+                return None
+
+        mock_interrogation_callback = MockInterrogationProtocol()
+        # mock_interrogation_callback.side_effect = [MessageNode(
+        #     message_content="Are you high?",
+        #     role=Role.user,
+        #     id=_stub_uuid,
+        # ), None, None, None, None]
 
         def side_effect_fn(context):
             # Copy the context to store its state at this point in time
