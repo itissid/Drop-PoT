@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 
-class ParsedEventTable(Base):  # type: ignore
+class ParsedEventTable(Base):
     __tablename__ = "parsed_events"
 
     id = Column(Integer, primary_key=True)
