@@ -1,7 +1,8 @@
 import datetime
 import json
-# from .main import engine
 import logging
+import logging.config
+import os
 import re
 from dataclasses import asdict
 from pathlib import Path
@@ -32,6 +33,7 @@ from main.model.types import Event, create_event
 from main.utils.cli_utils import (_optionally_format_colorama, ask_user_helper,
                                   choose_file, formatted_dict,
                                   would_you_like_to_continue)
+from main.utils.color_formatter import ColoredFormatter
 from main.utils.prompt_utils import (base_prompt_hoboken_girl,
                                      default_parse_event_prompt)
 from main.utils.scraping import get_documents
@@ -39,21 +41,21 @@ from main.utils.scraping import get_documents
 app = typer.Typer()
 
 # LOGGING #
-logger = logging.getLogger(__name__)
-# Create a file handler.
-file_handler = logging.FileHandler("app.log")
+log_format = "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
 
-# Create a console handler.
-console_handler = logging.StreamHandler()
-
-# Create a formatter and add it to the handlers.
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Add the handlers to the logger.
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s",
+#     handlers=[
+#         logging.FileHandler("app.log"),
+#         logging.StreamHandler()
+#     ]
+# )
+config_path = os.path.join(os.path.dirname(
+    __file__), 'logging_config.ini')
+print(config_path)
+logging.config.fileConfig(config_path)
+logger = logging.getLogger()
 
 # TODO(Sid): Move the invoke_subcommand checks to individual command files where it is used,
 # we can oveeride @app.callback there.
@@ -74,7 +76,12 @@ def setup(
     if loglevel not in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
         logger.error(f"Invalid log level: {loglevel}. Defaulting to INFO.")
         loglevel = "INFO"
-    logger.setLevel(getattr(logging, loglevel))
+    print(f"loglevel: {loglevel}")
+    root_logger = logging.getLogger()
+    root_logger.setLevel(loglevel)
+    colored_formatter = ColoredFormatter(log_format)
+    for handler in root_logger.handlers:
+        handler.setFormatter(colored_formatter)
     logger.debug(f"In callback {ctx.invoked_subcommand}")
     click.get_current_context().obj = {}
 

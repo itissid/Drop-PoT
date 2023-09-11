@@ -5093,6 +5093,21 @@ pymysql = ["pymysql"]
 sqlcipher = ["sqlcipher3-binary"]
 
 [[package]]
+name = "sqlalchemy-stubs"
+version = "0.4"
+description = "SQLAlchemy stubs and mypy plugin"
+optional = false
+python-versions = "*"
+files = [
+    {file = "sqlalchemy-stubs-0.4.tar.gz", hash = "sha256:c665d6dd4482ef642f01027fa06c3d5e91befabb219dc71fc2a09e7d7695f7ae"},
+    {file = "sqlalchemy_stubs-0.4-py3-none-any.whl", hash = "sha256:5eec7aa110adf9b957b631799a72fef396b23ff99fe296df726645d01e312aa5"},
+]
+
+[package.dependencies]
+mypy = ">=0.790"
+typing-extensions = ">=3.7.4"
+
+[[package]]
 name = "sqlalchemy-utils"
 version = "0.41.1"
 description = "Various utility functions for SQLAlchemy."
@@ -6101,4 +6116,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "8e9f48b424084adce405e818c363cfe4efb4f0ed671d1405c95e68fd28cecbea"
+content-hash = "82b5aa30369fcaa55abd2f72cbe7399e16842350956f0647da47f6eefb346c1c"

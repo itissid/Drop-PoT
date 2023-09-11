@@ -135,6 +135,7 @@ def driver_wrapper(
                 event_node.history = []
             event_node.history.append(system_message)
             # The function call should happen if its the last message from the user only.
+            # 1. Should a function be called?
             message_function_call_spec, explicit_fn_call = function_call_spec_callable(
             ) if function_call_spec_callable is not None else (None, None)
             user_message = MessageNode(
@@ -151,13 +152,13 @@ def driver_wrapper(
             logger.debug('PostSend')
 
             event_node.history.append(ai_message)
-
             if ai_message.ai_function_call:
                 assert function_callable_for_ai_function_call is not None, (
                     "AI wants to call a function but no user function to call one was provided."
                 )
                 fn_call_result, fn_call_result_str = function_callable_for_ai_function_call(
                     ai_message)
+                logger.debug("AI Function called")
                 event_node.history.append(MessageNode(
                     role=Role.function,
                     ai_function_call_result=fn_call_result_str,

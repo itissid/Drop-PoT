@@ -197,6 +197,8 @@ def get_parsed_events(engine: Engine, filename: str, version: str) -> List[Parse
 # Note to self: What relationship do our document embeddings have with the Moods?
 # How do I add relationships between them so it is easy to retrieve them later?
 # How can I relate them to a person's input so that I can personalize what someone sees?
+
+
 def insert_parsed_event_embeddings(engine: Engine, events: List[Dict[str, str]]):
     Session = sessionmaker(bind=engine)
     session = Session()
