@@ -41,7 +41,7 @@ class AIFunctionCall(BaseModel):
 
     """
     name: Optional[str] = None
-    arguments: Optional[Json] = None
+    arguments: Optional[Json[Dict[str, Any]]] = None
 
 
 class UserFunctionCallMode(enum.Enum):
@@ -98,7 +98,7 @@ class MessageNode(BaseModel):
                                      UserFunctionCallMode]] = None
     # Set when AI calls a function with the name and arguments.
     ai_function_call: Optional[AIFunctionCall] = None
-    # set for role: function from user's call to the function. Mainly used for replay or further interrogating.
+    # set for role: "function" from user's call to the function. Mainly used for replay or further interrogating.
     ai_function_call_result_name: Optional[str] = None
     ai_function_call_result: Optional[str] = None
     # Arbitrary meta data extracted for this message. File name, tags, versions etc.

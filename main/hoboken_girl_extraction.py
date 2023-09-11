@@ -20,7 +20,9 @@ from main.commands.embedding_commands import (index_event_embeddings,
 from main.hoboken_girl.function_call import hoboken_girl_event_function_param
 from main.lib.ai import AIDriver, AltAI, driver_wrapper
 from main.lib.db import DB
-from main.model.ai_conv_types import EventNode, MessageNode, Role
+from main.lib.interrogation import InteractiveInterrogationProtocol
+from main.model.ai_conv_types import (EventNode, InterrogationProtocol,
+                                      MessageNode, Role)
 from main.model.mood_model import Base as MoodBase
 from main.model.persistence_model import Base as PersistenceBase
 from main.model.persistence_model import (
@@ -62,6 +64,7 @@ def setup(
     ctx: typer.Context,
     loglevel: str = typer.Option("INFO", help="Set the log level"),
     force_initialize_db: bool = False,
+    test_db: bool = False
 ):
     """
     Setup logging configuration.
@@ -82,28 +85,28 @@ def setup(
         or force_initialize_db
     ):
         logger.info("Initializing Drop database")
-        _validate_database()
+        _validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif (ctx.invoked_subcommand == "index-moods"):
         from model.mood_model import (MoodJsonTable,
                                       SubmoodBasedEmbeddingTextAccessorTable)
-        _validate_database()
+        _validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-events":
         from model.persistence_model import ParsedEventTable
-        _validate_database()
+        _validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-mood-embeddings":
         from model.mood_model import SubmoodBasedEmbeddingsTable
-        _validate_database()
+        _validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == 'index-event-embeddings':
         from model.persistence_model import ParsedEventEmbeddingsTable
-        _validate_database()
+        _validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif force_initialize_db:
         logger.info("Force Initializing Drop database.")
-        _validate_database()
+        _validate_database(test_db=test_db)
         from model.persistence_model import (ParsedEventEmbeddingsTable,
                                              ParsedEventTable)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
@@ -113,14 +116,18 @@ def setup(
         MoodBase.metadata.create_all(bind=obj["engine"])
 
 
-def _validate_database():
+def _validate_database(test_db: bool = False):
     obj = click.get_current_context().obj
-    url = "sqlite:///drop.db"
+    if test_db:
+        url = "sqlite:///test_drop.db"
+    else:
+        url = "sqlite:///drop.db"
+    print(f"Initalizing database at {url}")
     if not database_exists(url):  # Checks for the first time
         create_database(url)  # Create new DB
         print(
             "New Database Created: "
-            + str(database_exists(obj["engine"].url))
+            + str(database_exists(obj.get("engine", url)))
         )  # Verifies if database is there or not.
     if not obj.get("engine"):
         obj["engine"] = create_engine(url)
@@ -258,8 +265,9 @@ def extract_serialize_events(
         "v1", help="The version of the event extractor to use"
     ),
     retry_only_errors: bool = False,
-    # For chatting with the AI in the loop to fix its generation.
-    human_in_loop: bool = False,
+    # Large enough.
+    max_acceptable_errors: int = int(1e7),
+    is_test: bool = True,
 ):
     """
     Call AI to parse all teh events in ingestable_article_file to extract
@@ -306,49 +314,46 @@ def extract_serialize_events(
         message_content=base_prompt_hoboken_girl(
             cities, date.strftime("%Y-%m-%d")),
     )
-    for event_node, event in hoboken_girl_driver_wrapper(events, system_message, ai_driver):
-        # TODO(Ref1): Serialize the event_node to db
-
-        print(event_node, event)
-
-    # TODO (Ref1): Create messages using the MessageNode class.
-    # TODO (Ref1): Add the chat history returned by calls to AI to the add_event function and serialize to DB.
-    # TODO (Ref1): Test
-    # 1. A full chat history is saved to DB including the function call.
-    #   a. The system prompt, the original user messages and function call to AI
-    #   and the assistant messages(JSON to str stuff is confusing).
-    #
-    # 2. A replay history is also saved: Since we want to be able to replay
-    # everything else except the function call we need to save the EventNode to
-    # DB after transforming it.  This will be in a separate column in the
-    # parsed_events table.
-
-    # messages = ai.start(
-    #     base_prompt_hoboken_girl(cities, date.strftime("%Y-%m-%d")),
-    #     # NOTE: Add an optional clarification Step, here is where we might add a hook prompt for the AI to ask the user in case anything is unclear
-    #     # this can be useful for AI to self reflect and produce more grounded prompts.
-    #     "Wait for me to send/paste an event below.",
-    # )
-    # print(f"I have {len(messages)} messages in my memory and the last was:")
-    # # TODO: Add some assertion about messages recieved
-    # print(messages[-1]["content"])
-
-    # max_acceptable_errors = 5
-    # num_errors = 0
-
-    # element_names_already_seen = set(
-    #     get_column_by_version_and_filename(
-    #         ctx.obj["engine"],
-    #         "name",
-    #         version,
-    #         ingestable_article_file.name,
-    #     )
-    # )
-
-    # Communicate with the driver.
+    num_errors = 0
+    driver_wrapper_gen = hoboken_girl_driver_wrapper(events, system_message, ai_driver,
+                                                     interrogation_callback=InteractiveInterrogationProtocol())
+    for event in driver_wrapper_gen:
+        assert event.history is not None
+        try:
+            add_event(
+                ctx.obj["engine"],
+                event=event.event_obj,
+                original_text=event.raw_event_str,
+                replay_history=event.history,
+                failure_reason=None,
+                filename=ingestable_article_file.name,
+                version=version,
+            )
+        except Exception as e:
+            engine = ctx.obj["engine"]
+            id = add_event(
+                engine,
+                event=None,
+                original_text=event.raw_event_str,
+                replay_history=event.history,
+                failure_reason=str(e),
+                filename=ingestable_article_file.name,
+                version=version,
+            )
+            logger.error(f"Error processing event {id}")
+            logger.exception(e)
+            if num_errors > max_acceptable_errors:
+                typer.echo(
+                    f"Too many errors. Stopping processing. Please fix the errors and run the command again."
+                )
+                return
+            num_errors += 1
+            continue
 
 
 def hoboken_girl_driver_wrapper(
+        # TODO: This functions does not do much and is actually part of the intergration test case.
+        # I need to remove this function and instead just test the driver_wrapper directly.
         events: List[str],
         system_message: MessageNode,
         ai_driver: AIDriver,
@@ -357,16 +362,9 @@ def hoboken_girl_driver_wrapper(
         function_call_spec_callable=hoboken_girl_event_function_param,
         function_callable_for_ai_function_call=lambda ai_message: call_ai_generated_function_for_event(
             ai_message),
-        interrogation_callback: Optional[Callable[[
-            EventNode], Optional[MessageNode]]] = None,
+        interrogation_callback: Optional[InterrogationProtocol] = None,
 
 ) -> Generator[EventNode, None, None]:
-
-    # def message_content_callable(event_node: EventNode):
-    #     return default_parse_event_prompt(event=event_node.raw_event_str)
-
-    # def function_call_spec_callable():
-    #     return hoboken_girl_event_function_param()
 
     driver_gen = driver_wrapper(
         events,
@@ -379,6 +377,7 @@ def hoboken_girl_driver_wrapper(
     )
     for event in driver_gen:
         if isinstance(event, EventNode):
+            assert event.history, "No conversational record found for event. Something is very wrong."
             yield event
         else:
             # NOTE(Ref1): this is where we would add the HIL bit.
@@ -400,7 +399,7 @@ def call_ai_generated_function_for_event(ai_message: MessageNode) -> Tuple[Optio
     if ai_message.ai_function_call is not None:
         function_call = ai_message.ai_function_call.model_dump()
     fn_name = function_call.get("name", None)
-    fn_args = json.loads(function_call.get("arguments", "{}"))
+    fn_args = function_call.get("arguments", "{}")
 
     # NOTE: This step could be used to create training data for a future model to do this better.
     event_obj = None
@@ -429,6 +428,8 @@ def call_ai_generated_function_for_event(ai_message: MessageNode) -> Tuple[Optio
 
 
 def _event_gen(ingestable_article_file: Path):
+    # NOTE: if we want to stream messages using the AIDriver, which is where the list of 
+    # events is used, we can make this a generator.
     with open(ingestable_article_file, "r") as f:
         lines = f.readlines()
         all_text = "\n".join(lines)

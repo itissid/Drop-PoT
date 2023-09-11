@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
+from main.model.ai_conv_types import MessageNode
 from main.model.types import Event
 
 logger = logging.getLogger(__name__)
@@ -27,12 +28,14 @@ class ParsedEventTable(Base):
     original_event = Column(Text, nullable=False)
     failure_reason = Column(String, nullable=True)
     filename = Column(String, nullable=False)
+    chat_history = Column(JSON, nullable=True)
+    replay_history = Column(JSON, nullable=True)
     version = Column(String, nullable=False)
     parsed_event_embedding = relationship(
         "ParsedEventEmbeddingsTable", uselist=False, back_populates="parsed_event")
 
 
-class ParsedEventEmbeddingsTable(Base):  # type: ignore
+class ParsedEventEmbeddingsTable(Base):
     __tablename__ = "ParsedEventEmbeddingsTable"
 
     id = Column(Integer, primary_key=True)
@@ -40,7 +43,8 @@ class ParsedEventEmbeddingsTable(Base):  # type: ignore
     embedding_version = Column(String, nullable=False)
 
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
-    parsed_event = relationship("ParsedEventTable", back_populates="parsed_event_embedding")
+    parsed_event = relationship(
+        "ParsedEventTable", back_populates="parsed_event_embedding")
 
 
 def add_event(
@@ -48,8 +52,10 @@ def add_event(
     event: Optional[Event],
     original_text: str,
     failure_reason: Optional[str],
+    replay_history: List[MessageNode],
     filename: str,
     version: str,
+    chat_history: Optional[List[str]] = None,
 ) -> int:
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -60,11 +66,15 @@ def add_event(
     else:
         event_dict = None
     try:
+        replay_history_json = [message.model_dump(mode="json")
+                               for message in replay_history]
         event_table = ParsedEventTable(
             name=event.name if event else None,
             description=event.description if event else None,
             event_json=event_dict,
             original_event=original_text,
+            replay_history=replay_history_json,
+            chat_history=chat_history,
             failure_reason=failure_reason,
             filename=filename,
             version=version,
@@ -196,7 +206,7 @@ def insert_parsed_event_embeddings(engine: Engine, events: List[Dict[str, str]])
         parsed_event_embedding = ParsedEventEmbeddingsTable(
             description_embedding=parsed_event["embedding_vector"],
             embedding_version=parsed_event["version"],
-            parsed_event_id=parsed_event["id"],
+            parsed_event_id=int(parsed_event["id"]),
         )
         embedding_lst.append(parsed_event_embedding)
     try:

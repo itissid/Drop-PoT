@@ -128,7 +128,7 @@ def driver_wrapper(
     while True:
         # Send the system prompt every time.
         try:
-            print('>>')
+            logger.debug('>>')
             assert isinstance(event_node, EventNode), f'{type(event_node)}'
             # An event is started
             if not event_node.history:
@@ -145,10 +145,10 @@ def driver_wrapper(
             )
             event_node.history.append(user_message)
 
-            print('PreSend')
+            logger.debug('PreSend')
             ai_message = driver_gen.send([system_message, user_message])
             assert isinstance(ai_message, MessageNode)
-            print('PostSend')
+            logger.debug('PostSend')
 
             event_node.history.append(ai_message)
 
@@ -164,9 +164,12 @@ def driver_wrapper(
                     ai_function_call_result_name=ai_message.ai_function_call.name
                 ))
                 event_node.event_obj = fn_call_result
-            print('>>>')
-
-            print(f"Got message from AI:\n {ai_message.message_content}")
+            else:
+                logger.debug("No AI Function call")
+            logger.debug('>>>')
+            if ai_message.message_content:
+                logger.debug(
+                    f"Got message_content from AI:\n {ai_message.message_content}")
             # Human interaction with AI if set is managed here.
             if interrogation_callback is not None:
                 interrogation_message = interrogation_callback.get_interrogation_message(
@@ -176,9 +179,9 @@ def driver_wrapper(
                     assert interrogation_message.role == Role.user
                     # TestMe: Is function calling working here?
                     ai_message = driver_gen.send(interrogation_message)
-                    event_node.history.append(interrogation_message)
                     assert isinstance(
                         ai_message, MessageNode) and ai_message.role == Role.assistant
+                    event_node.history.append(interrogation_message)
 
                     event_node.history.append(ai_message)
                     interrogation_message = interrogation_callback.get_interrogation_message(
