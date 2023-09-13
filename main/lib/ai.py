@@ -24,11 +24,12 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import (Any, Callable, Dict, Generator, List, Literal, Optional,
+                    Tuple, Union, cast)
 
 import openai
 from colorama import Fore
-from pydantic import UUID1, BaseModel, Field, Json
+from pydantic import UUID1, BaseModel, Field, Json, ValidationError
 from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
                       wait_random_exponential)
 
@@ -71,20 +72,30 @@ class AIDriver:
     def __init__(self, ai: AltAI):
         self._ai = ai
 
-    def drive(self, events: List[str]):
+    def drive(
+        self, events: List[str]
+    ) -> Generator[EventNode | ValidationError | MessageNode, List[MessageNode] | MessageNode, Literal['Done']]:
         # Event <--1--*--> Message
+        #
         for event in events:
             event_node = EventNode(raw_event_str=event)
 
             # more than one messages during replay.
-            user_message_nodes: List[MessageNode] = yield event_node
+            user_message_nodes = yield event_node
+            assert isinstance(user_message_nodes, list)
             assert len(user_message_nodes) > 0
             context = []
             while True:
                 for user_message_node in user_message_nodes:
                     context.append(user_message_node)
-
-                msg_from_ai = self._ai.send(context)
+                try:
+                    msg_from_ai = self._ai.send(context)
+                except ValidationError as e:
+                    logger.error(
+                        f"Pydantic validation error in sending message to AI: {e.json()}")
+                    yield e
+                    # TODO: Test me
+                    break
                 context.append(msg_from_ai)
 
                 # Possible interrogation follows the Himan in loop interation
@@ -97,6 +108,7 @@ class AIDriver:
                     assert isinstance(
                         interrogative_message, MessageNode) and interrogative_message.role == Role.user
                     user_message_nodes = [interrogative_message]
+        return 'Done'
 
 
 def driver_wrapper(
@@ -116,14 +128,15 @@ def driver_wrapper(
             MessageNode], Tuple[Any, str]]] = None,
         interrogation_callback: Optional[InterrogationProtocol] = None,
 
-) -> Generator:
+) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
     """
+    # TODO: Probably make this part of the AIDriver class, since its tightly coupled to that.
     Drives the AIDriver by sending it a System message + User message at first then 
     it can send .
     Maintains history of the message linked to the processing of the event.
     """
     driver_gen = ai_driver.drive(events)
-    event_node = driver_gen.send(None)
+    event_node = driver_gen.send(None)  # type: ignore
     # for event_node in driver_gen:
     while True:
         # Send the system prompt every time.
@@ -147,50 +160,57 @@ def driver_wrapper(
             event_node.history.append(user_message)
 
             logger.debug('PreSend')
-            ai_message = driver_gen.send([system_message, user_message])
-            assert isinstance(ai_message, MessageNode)
-            logger.debug('PostSend')
 
-            event_node.history.append(ai_message)
-            if ai_message.ai_function_call:
-                assert function_callable_for_ai_function_call is not None, (
-                    "AI wants to call a function but no user function to call one was provided."
-                )
-                fn_call_result, fn_call_result_str = function_callable_for_ai_function_call(
-                    ai_message)
-                logger.debug("AI Function called")
-                event_node.history.append(MessageNode(
-                    role=Role.function,
-                    ai_function_call_result=fn_call_result_str,
-                    ai_function_call_result_name=ai_message.ai_function_call.name
-                ))
-                event_node.event_obj = fn_call_result
+            ai_message_or_error = driver_gen.send(
+                [system_message, user_message])
+            if isinstance(ai_message_or_error, ValidationError):
+                # TODO: Handle other types of errors that cannot be retried
+                yield event_node, ai_message_or_error
             else:
-                logger.debug("No AI Function call")
-            logger.debug('>>>')
-            if ai_message.message_content:
-                logger.debug(
-                    f"Got message_content from AI:\n {ai_message.message_content}")
-            # Human interaction with AI if set is managed here.
-            if interrogation_callback is not None:
-                interrogation_message = interrogation_callback.get_interrogation_message(
-                    event_node)
-                # User is now conversing with the AI, trying to get it to fix its responses.
-                while interrogation_message is not None:
-                    assert interrogation_message.role == Role.user
-                    # TestMe: Is function calling working here?
-                    ai_message = driver_gen.send(interrogation_message)
-                    assert isinstance(
-                        ai_message, MessageNode) and ai_message.role == Role.assistant
-                    event_node.history.append(interrogation_message)
-
-                    event_node.history.append(ai_message)
+                ai_message = cast(MessageNode, ai_message_or_error)
+                assert isinstance(ai_message, MessageNode)
+                logger.debug('PostSend')
+                event_node.history.append(ai_message)
+                if ai_message.ai_function_call:
+                    assert function_callable_for_ai_function_call is not None, (
+                        "AI wants to call a function but no user function to call one was provided."
+                    )
+                    fn_call_result, fn_call_result_str = function_callable_for_ai_function_call(
+                        ai_message)
+                    logger.debug("AI Function called")
+                    event_node.history.append(MessageNode(
+                        role=Role.function,
+                        ai_function_call_result=fn_call_result_str,
+                        ai_function_call_result_name=ai_message.ai_function_call.name
+                    ))
+                    event_node.event_obj = fn_call_result
+                else:
+                    logger.debug("No AI Function call")
+                logger.debug('>>>')
+                if ai_message.message_content:
+                    logger.debug(
+                        f"Got message_content from AI:\n {ai_message.message_content}")
+                # Human interaction with AI if set is managed here.
+                if interrogation_callback is not None:
                     interrogation_message = interrogation_callback.get_interrogation_message(
                         event_node)
-            yield event_node
-            event_node = driver_gen.send(None)
+                    # User is now conversing with the AI, trying to get it to fix its responses.
+                    while interrogation_message is not None:
+                        assert interrogation_message.role == Role.user
+                        ai_message = driver_gen.send(
+                            interrogation_message)  # type: ignore
+                        assert isinstance(
+                            ai_message, MessageNode) and ai_message.role == Role.assistant
+                        event_node.history.append(interrogation_message)
+
+                        event_node.history.append(ai_message)
+                        interrogation_message = interrogation_callback.get_interrogation_message(
+                            event_node)
+                yield event_node, None
+                event_node = driver_gen.send(None)  # type: ignore
 
         except StopIteration as excinfo:
+            assert excinfo.value == 'Done', f"Expected StopIteration('Done') instead got: {excinfo}"
             logger.debug(excinfo)
             break
 
@@ -254,12 +274,12 @@ class AltAI:
         )
         chat, func_call = _chat_function_call_from_response(response)
 
-        print()
+        logger.debug("")
         logger.debug("Chat completion finished.")
         logger.debug("".join(chat))
         if func_call:
             logger.debug(func_call)
-        print()
+        logger.debug("")
         return MessageNode(
             role=Role.assistant,
             message_content="".join(chat) if chat else None,
@@ -292,8 +312,8 @@ class AltAI:
         return response
 
 
-def _chat_function_call_from_response(response):
-    chat = []
+def _chat_function_call_from_response(response) -> Tuple[List[str], Optional[Dict[str, Optional[str]]]]:
+    chat: List[str] = []
     func_call = None
     for chunk in response:
         try:
@@ -314,9 +334,8 @@ def _chat_function_call_from_response(response):
                         "arguments"
                     ]
             if "content" in delta:
-                msg = (
-                    delta.get("content", "") or ""
-                )  # Key may be there but None
+                # Key may be there but None
+                msg = delta.get("content", "") or ""
                 chat.append(msg)
         except Exception as e:
             raise e

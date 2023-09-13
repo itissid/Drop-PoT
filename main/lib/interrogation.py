@@ -25,6 +25,8 @@ class InteractiveInterrogationProtocol(InterrogationProtocol):
 
     def get_interrogation_message(self, event: EventNode) -> Optional[MessageNode]:
         """ 
+        # TODO: Add support for a function call for the user.
+
         get the last MessageNode from EventNode and if its role is assistant and it has a function call result
         then print the function call result and ask the user if they want to amend it
         """
@@ -37,7 +39,7 @@ class InteractiveInterrogationProtocol(InterrogationProtocol):
             )
             return None
         last_message = event.history[-1]
-        if last_message.role == Role.assistant and last_message.ai_function_call_result:
+        if last_message.role == Role.function and last_message.ai_function_call_result:
             print(
                 f"AI function call result: {last_message.ai_function_call}")
             assert event.event_obj

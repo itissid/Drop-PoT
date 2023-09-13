@@ -11,6 +11,7 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple
 import click
 import typer
 from colorama import Fore
+from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy_utils import create_database, database_exists
 
@@ -43,19 +44,16 @@ app = typer.Typer()
 # LOGGING #
 log_format = "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
 
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s",
-#     handlers=[
-#         logging.FileHandler("app.log"),
-#         logging.StreamHandler()
-#     ]
-# )
-config_path = os.path.join(os.path.dirname(
-    __file__), 'logging_config.ini')
-print(config_path)
-logging.config.fileConfig(config_path)
-logger = logging.getLogger()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s",
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 # TODO(Sid): Move the invoke_subcommand checks to individual command files where it is used,
 # we can oveeride @app.callback there.
@@ -306,13 +304,14 @@ def extract_serialize_events(
     if not retry_only_errors:
         events = _event_gen(ingestable_article_file)
     else:
-        # TODO: Fetch failed events from database and retry them.
+        # TODO: Fetch failed events from database and retry them. Maybe have somekind
+        # of a queue abstraction that I can read failure events from instead of using
+        # SQLLite as a "queue" for such things.
         pass
     if not events:
         logger.warn("No events found. Exiting")
         return
 
-    # 1. Send System prompt.
     ai = AltAI()
     ai_driver = AIDriver(ai)
 
@@ -324,9 +323,23 @@ def extract_serialize_events(
     num_errors = 0
     driver_wrapper_gen = hoboken_girl_driver_wrapper(events, system_message, ai_driver,
                                                      interrogation_callback=InteractiveInterrogationProtocol())
-    for event in driver_wrapper_gen:
-        assert event.history is not None
+    for event, error in driver_wrapper_gen:
+        if error:
+            assert isinstance(
+                error, ValidationError), "Only validation error expected to be handled. You may want to add more error handling here."
+            assert event.history is not None
+            add_event(
+                ctx.obj["engine"],
+                event=None,
+                original_text=event.raw_event_str,
+                replay_history=event.history,
+                failure_reason=error.json(),
+                filename=ingestable_article_file.name,
+                version=version,
+            )
+            continue
         try:
+            assert event.history is not None
             add_event(
                 ctx.obj["engine"],
                 event=event.event_obj,
@@ -347,8 +360,8 @@ def extract_serialize_events(
                 filename=ingestable_article_file.name,
                 version=version,
             )
-            logger.error(f"Error processing event {id}")
             logger.exception(e)
+            logger.warn(f"Event id #{id} saved with its error")
             if num_errors > max_acceptable_errors:
                 typer.echo(
                     f"Too many errors. Stopping processing. Please fix the errors and run the command again."
@@ -371,7 +384,7 @@ def hoboken_girl_driver_wrapper(
             ai_message),
         interrogation_callback: Optional[InterrogationProtocol] = None,
 
-) -> Generator[EventNode, None, None]:
+) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
 
     driver_gen = driver_wrapper(
         events,
@@ -382,10 +395,10 @@ def hoboken_girl_driver_wrapper(
         function_callable_for_ai_function_call,
         interrogation_callback,
     )
-    for event in driver_gen:
+    for event, error in driver_gen:
         if isinstance(event, EventNode):
             assert event.history, "No conversational record found for event. Something is very wrong."
-            yield event
+            yield event, error
         else:
             # NOTE(Ref1): this is where we would add the HIL bit.
             raise NotImplementedError("Only EventNode is supported for now.")
@@ -435,7 +448,7 @@ def call_ai_generated_function_for_event(ai_message: MessageNode) -> Tuple[Optio
 
 
 def _event_gen(ingestable_article_file: Path):
-    # NOTE: if we want to stream messages using the AIDriver, which is where the list of 
+    # NOTE: if we want to stream messages using the AIDriver, which is where the list of
     # events is used, we can make this a generator.
     with open(ingestable_article_file, "r") as f:
         lines = f.readlines()
