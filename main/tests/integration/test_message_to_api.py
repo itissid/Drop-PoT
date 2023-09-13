@@ -47,15 +47,17 @@ class TestSendToOpenAIAPI(unittest.TestCase):
                 message_content="You are helpful assistant. Follow the instructions I give you. Do not respond until I ask you a question.",
             ),
             ai_driver=AIDriver(AltAI(model="gpt-3.5-turbo-16k")),
-            message_content_callable=lambda x: x.raw_event_str,
+            message_content_formatter=lambda x: x.raw_event_str,
             function_call_spec_callable=None,
             function_callable_for_ai_function_call=None
         )
-        event = next(driver)
+        event, _ = next(driver)
+        assert event.history
         self.assertEquals(len(event.history), 3)
         self.assertEquals(event.history[0].role, Role.system)
         self.assertEquals(event.history[1].role, Role.user)
         self.assertEquals(event.history[2].role, Role.assistant)
+        assert event.history[2].message_content
         self.assertGreaterEqual(len(event.history[2].message_content), 1)
 
         print(event.history[2].message_content)
@@ -103,16 +105,17 @@ class TestSendToOpenAIAPI(unittest.TestCase):
                 message_content="You are helpful assistant. Follow the instructions I give you. Do not respond until I ask you a question.",
             ),
             ai_driver=AIDriver(AltAI(model="gpt-3.5-turbo-16k")),
-            message_content_callable=lambda x: x.raw_event_str,
+            message_content_formatter=lambda x: x.raw_event_str,
             function_call_spec_callable=lambda: (functions, UserExplicitFunctionCall(
                 name="get_current_weather",
             )),
             function_callable_for_ai_function_call=lambda ai_message: weather_fn_call_wrapper(
                 ai_message)
         )
-        event = next(driver)
+        event, _ = next(driver)
         print(event.event_obj)
         print(event.history)
+        assert event.history
         self.assertEquals(len(event.history), 4)
         self.assertEquals(event.history[0].role, Role.system)
         self.assertEquals(event.history[0].message_content,
@@ -127,6 +130,7 @@ class TestSendToOpenAIAPI(unittest.TestCase):
             name="get_current_weather"))
 
         self.assertEquals(event.history[2].role, Role.assistant)
+        assert event.history[2].ai_function_call
         self.assertEquals(
             event.history[2].ai_function_call.name, 'get_current_weather')
         self.assertEquals(event.history[2].message_content, "")

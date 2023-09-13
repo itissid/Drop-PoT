@@ -58,7 +58,7 @@ You will see three commands that are explained in the flow above.
 │ extract-serialize-events                            Call parse_events and get                           │
 │ ingest-urls                                                                                             │
 │ post-process                                                                                            │
-╰───────────────
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────╯ 
 ```
 
 # What each step of the Flow does.
@@ -67,7 +67,7 @@ You will see three commands that are explained in the flow above.
 Potentially other web page that has content, but script might need tuning.
 ## Example command:
 ```
-python main/hoboken_girl_extraction.py ingest-urls /Users/sid/workspace/scraping/examples/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-30-2023/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-23-2023/ --run-prefix test
+poetry python run main/hoboken_girl_extraction.py ingest-urls /Users/sid/workspace/scraping/examples/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-30-2023/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-23-2023/ --run-prefix test
 ```
 will scrape two pages(internally using BeautifulSoup and requests)
 
@@ -85,7 +85,7 @@ Since its heuristic one need to double check if all events have been delimited(~
 
 ## Example command is :
 ```
-python main/hoboken_girl_extraction.py extract-serialize-events 2023-05-23 --cities Hoboken --cities JerseyCity --ingestable-article-file ~/workspace/scraping/examples/postprocessed/hobokengirl_com_hoboken_jersey_city_events_june_23_2023_20230704_170142_postprocessed.txt 
+poetry run python -m  main.hoboken_girl_extraction extract-serialize-events 2023-05-23 --cities Hoboken --cities JerseyCity --cities NewYorkCity --ingestable-article-file ~/workspace/drop/examples/postprocessed/hobokengirl_com_hoboken_jersey_city_events_september_1_2023_20230913_160012_a.txt_postprocessed
 ```
 
 There will be errors in this process due to OpenAI timing out. In running this I

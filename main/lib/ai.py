@@ -117,7 +117,7 @@ def driver_wrapper(
         ai_driver: AIDriver,
         # The callback that can given an EventNode give you the raw string
         # message content used in user messages to the AI.
-        message_content_callable: Callable[[EventNode], str],
+        message_content_formatter: Callable[[EventNode], str],
         # A callback that gets you the function call spec for passing to OpenAI:
         # https://platform.openai.com/docs/guides/gpt/function-calling
         # TODO: Make these types less verbose.
@@ -125,7 +125,7 @@ def driver_wrapper(
         ], Tuple[Optional[List[OpenAIFunctionCallSpec]], Union[UserExplicitFunctionCall, UserFunctionCallMode]]]] = None,
         # A callback to get the result of the function that the AI recommended you call.
         function_callable_for_ai_function_call: Optional[Callable[[
-            MessageNode], Tuple[Any, str]]] = None,
+            MessageNode], Tuple[Optional[Any], Optional[str]]]] = None,
         interrogation_callback: Optional[InterrogationProtocol] = None,
 
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
@@ -153,7 +153,7 @@ def driver_wrapper(
             ) if function_call_spec_callable is not None else (None, None)
             user_message = MessageNode(
                 role=Role.user,
-                message_content=message_content_callable(event_node),
+                message_content=message_content_formatter(event_node),
                 functions=message_function_call_spec,
                 explicit_fn_call=explicit_fn_call,  # mypy ignore
             )
@@ -199,6 +199,8 @@ def driver_wrapper(
                         assert interrogation_message.role == Role.user
                         ai_message = driver_gen.send(
                             interrogation_message)  # type: ignore
+                        # TODO: make interrogation events handle function calls
+                        # once that is done we can
                         assert isinstance(
                             ai_message, MessageNode
                         ) and ai_message.role == Role.assistant

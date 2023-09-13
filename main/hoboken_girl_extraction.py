@@ -326,7 +326,7 @@ def extract_serialize_events(
     num_errors = 0
     driver_wrapper_gen = hoboken_girl_driver_wrapper(events, system_message, ai_driver,
                                                      interrogation_callback=InteractiveInterrogationProtocol())
-    for event, error in driver_wrapper_gen:
+    for i, (event, error) in enumerate(driver_wrapper_gen):
         if error:
             assert isinstance(
                 error, ValidationError), "Only validation error expected to be handled. You may want to add more error handling here."
@@ -366,12 +366,13 @@ def extract_serialize_events(
             logger.exception(e)
             logger.warn(f"Event id #{id} saved with its error")
             if num_errors > max_acceptable_errors:
-                typer.echo(
+                logger.error(
                     f"Too many errors. Stopping processing. Please fix the errors and run the command again."
                 )
                 return
             num_errors += 1
-            continue
+        finally:
+            logger.info(f"Processed event {i}")
 
 
 def hoboken_girl_driver_wrapper(
@@ -380,11 +381,6 @@ def hoboken_girl_driver_wrapper(
         events: List[str],
         system_message: MessageNode,
         ai_driver: AIDriver,
-        message_content_callable=lambda event_node: default_parse_event_prompt(
-            event=event_node.raw_event_str),
-        function_call_spec_callable=hoboken_girl_event_function_param,
-        function_callable_for_ai_function_call=lambda ai_message: call_ai_generated_function_for_event(
-            ai_message),
         interrogation_callback: Optional[InterrogationProtocol] = None,
 
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
@@ -393,17 +389,17 @@ def hoboken_girl_driver_wrapper(
         events,
         system_message,
         ai_driver,
-        message_content_callable,
-        function_call_spec_callable,
-        function_callable_for_ai_function_call,
-        interrogation_callback,
+        message_content_formatter=lambda event_node: default_parse_event_prompt(
+            event=event_node.raw_event_str),
+        function_call_spec_callable=hoboken_girl_event_function_param,
+        function_callable_for_ai_function_call=call_ai_generated_function_for_event,
+        interrogation_callback=interrogation_callback,
     )
     for event, error in driver_gen:
         if isinstance(event, EventNode):
             assert event.history, "No conversational record found for event. Something is very wrong."
             yield event, error
         else:
-            # NOTE(Ref1): this is where we would add the HIL bit.
             raise NotImplementedError("Only EventNode is supported for now.")
 
 
@@ -462,11 +458,11 @@ def _event_gen(ingestable_article_file: Path):
             event.strip() for event in re.split(r"\$\$\$", all_text)
         ]
         ask_user_helper(
-            "There are {events} events in the file with an average of {avg} tokens per event.",
+            "There are {num_events} events in the file with an average of {avg} tokens per event.",
             data_to_format={
-                "events": len(events),
-                "avg": sum(len(event.split(" ")) for event in events)
-                / (len(events) + 1),
+                "num_events": str(len(events)),
+                "avg": str(sum(len(event.split(" ")) for event in events)
+                           / (len(events) + 1)),
             },
         )
         # Ask if user if all is good before proceeding.
