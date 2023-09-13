@@ -46,7 +46,7 @@ Scrape and Ingest data -> Post Process Data -> Extract Events*        -> Embeddi
 ## Code base layout:
 - Core data structure for `Event` is: `main/model/types.py`
 - Prompts for extraction are in `main/prompts/hoboken_girl_prompt.py`
-- AI and DB utilities are in `main/utils/ai.py` and `main/utils/db.py` along woth other utility functions
+- AI and DB utilities are in `main/lib/ai.py` and `main/lib/db.py` along woth other utility functions
 -  Main executable is a CLI interface in `main/hoboken_girl_extraction.py`
 
 ## After setting up virtualenv/pyenv you can

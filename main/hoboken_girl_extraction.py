@@ -168,10 +168,12 @@ def _ingest_urls_helper(
     """Ingest a url and return the path to the scraped file."""
 
     # Ask AI to create 3 file name suggestions for this parsed file.
-    def ask():
+    def ask() -> MessageNode:
         now = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        return ai.send(
-            system=f"""
+        return ai.send([
+            MessageNode(
+                role=Role.system,
+                message_content=f"""
         I want you to suggest at least 3 *unique* file names for each of the URL I will provide.
 
         Here are the instructions: 
@@ -195,13 +197,14 @@ def _ingest_urls_helper(
         }}]
         ```
         """,
-            user=f"Here are the URLS. I want you to suggest *3 unique* file names for each based on previous instructions: '\n'.join({urls})",
-        )
+            ), MessageNode(
+                role=Role.user,
+                message_content=f"Here are the URLS. I want you to suggest *3 unique* file names for each based on previous instructions: '\n'.join({urls})",
+            )])
 
-    messages = ask()
-    json_content = re.findall(
-        r"`{0,3}(.*)`{0,3}", messages[-1]["content"], re.DOTALL
-    )[0]
+    message = ask()
+    assert message.message_content is not None
+    json_content = message.message_content.lstrip('`').rstrip('`')
     url_file_names = choose_file(json_content)
     # Sanity check
     if len(url_file_names) != len(urls):

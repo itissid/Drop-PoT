@@ -52,7 +52,7 @@ def add_event(
     event: Optional[Event],
     original_text: str,
     failure_reason: Optional[str],
-    replay_history: List[MessageNode],
+    replay_history: Optional[List[MessageNode]],
     filename: str,
     version: str,
     chat_history: Optional[List[str]] = None,
@@ -66,8 +66,10 @@ def add_event(
     else:
         event_dict = None
     try:
-        replay_history_json = [message.model_dump(mode="json")
-                               for message in replay_history]
+        replay_history_json = None
+        if replay_history:
+            replay_history_json = [message.model_dump(mode="json")
+                                   for message in replay_history]
         event_table = ParsedEventTable(
             name=event.name if event else None,
             description=event.description if event else None,

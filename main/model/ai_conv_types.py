@@ -141,9 +141,11 @@ class EventNode(BaseModel):
         yield from EventNode.context_to_openai_api_messages(self.history or [])
 
     @staticmethod
-    def context_to_openai_api_messages(context: List[MessageNode]) -> Generator:
+    def context_to_openai_api_messages(context: List[MessageNode]) -> Generator[Dict[str, Any], None, None]:
         """
         Convert to a format to send to OpenAI API. Useful also for replaying.
+        TODO(Sid): It might be also useful to make this class extend TypedDict instead(https://docs.pydantic.dev/latest/usage/types/dicts_mapping/#typeddict) 
+        so that we can validate(via pydantic) when we serialize and deserialize chat history(json) from the SQLlite database.
         """
         assert context and len(context) > 0
         if len(context) == 1:
@@ -206,8 +208,8 @@ class EventNode(BaseModel):
                 a function call, In this case we need to send to AI(this is the replay scenario):
 
             {
-                    'role: 'user',
-                    'content': 'Whats the weather like in boston',
+                'role: 'user',
+                'content': 'Whats the weather like in boston',
             },
             and 
             {
@@ -229,8 +231,8 @@ class EventNode(BaseModel):
             3. If the user message(function call or not) is followed by an assistant message without a function call then we simply 
             need to send to AI:
             {
-                    'role: 'user',
-                    'content': 'Whats the weather like in boston',
+                'role: 'user',
+                'content': 'Whats the weather like in boston',
 
             }
             and
