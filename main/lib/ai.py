@@ -200,7 +200,8 @@ def driver_wrapper(
                         ai_message = driver_gen.send(
                             interrogation_message)  # type: ignore
                         assert isinstance(
-                            ai_message, MessageNode) and ai_message.role == Role.assistant
+                            ai_message, MessageNode
+                        ) and ai_message.role == Role.assistant
                         event_node.history.append(interrogation_message)
 
                         event_node.history.append(ai_message)
@@ -244,7 +245,9 @@ class AltAI:
                 i for i in EventNode.context_to_openai_api_messages(context)]
             functions = None
             explicit_fn_call = None
-            # N2S(Ref1): Move the allowed roles with functions to a config about what roles call functions.
+            # N2S(Ref1): Move the allowed roles with functions to a config about
+            # what roles can call functions. Assume that function is only
+            # called if its set to do so in the last message.
             if context_messages[-1].get("role", None) == Role.user.name:
                 if "functions" in context_messages[-1]:
                     # Only call the function if it was the last guy.
