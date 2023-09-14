@@ -24,20 +24,39 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict
-from typing import (Any, Callable, Dict, Generator, List, Literal, Optional,
-                    Tuple, Union, cast)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 import openai
 from colorama import Fore
 from pydantic import UUID1, BaseModel, Field, Json, ValidationError
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_random_exponential)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
-from main.model.ai_conv_types import (AIFunctionCall, EventNode,
-                                      InterrogationProtocol, MessageNode,
-                                      OpenAIFunctionCallSpec, Role,
-                                      UserExplicitFunctionCall,
-                                      UserFunctionCallMode)
+from main.model.ai_conv_types import (
+    AIFunctionCall,
+    EventNode,
+    InterrogationProtocol,
+    MessageNode,
+    OpenAIFunctionCallSpec,
+    Role,
+    UserExplicitFunctionCall,
+    UserFunctionCallMode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +79,9 @@ class AIDriver:
     1. It comminicates with the client API but its highly decoupled from that
     code: The client code only deals with the construction of the message and
     serialization of AI responses, while this code only takes care of
-    maintaining context and communicating with the AI. 
+    maintaining context and communicating with the AI.
 
-    2. It is also easy to "replay" events using user_messages_node variables that can 
+    2. It is also easy to "replay" events using user_messages_node variables that can
     hold all the messages.
 
     3. It also supports Human in Loop messages to be sent to the AI after its response
@@ -74,7 +93,11 @@ class AIDriver:
 
     def drive(
         self, events: List[str]
-    ) -> Generator[EventNode | ValidationError | MessageNode, List[MessageNode] | MessageNode, Literal['Done']]:
+    ) -> Generator[
+        EventNode | ValidationError | MessageNode,
+        List[MessageNode] | MessageNode,
+        Literal["Done"],
+    ]:
         # Event <--1--*--> Message
         #
         for event in events:
@@ -92,7 +115,8 @@ class AIDriver:
                     msg_from_ai = self._ai.send(context)
                 except ValidationError as e:
                     logger.error(
-                        f"Pydantic validation error in sending message to AI: {e.json()}")
+                        f"Pydantic validation error in sending message to AI: {e.json()}"
+                    )
                     yield e
                     # TODO: Test me
                     break
@@ -105,33 +129,42 @@ class AIDriver:
                     # print('....')
                     break
                 else:
-                    assert isinstance(
-                        interrogative_message, MessageNode) and interrogative_message.role == Role.user
+                    assert (
+                        isinstance(interrogative_message, MessageNode)
+                        and interrogative_message.role == Role.user
+                    )
                     user_message_nodes = [interrogative_message]
-        return 'Done'
+        return "Done"
 
 
 def driver_wrapper(
-        events: List[str],
-        system_message: MessageNode,
-        ai_driver: AIDriver,
-        # The callback that can given an EventNode give you the raw string
-        # message content used in user messages to the AI.
-        message_content_formatter: Callable[[EventNode], str],
-        # A callback that gets you the function call spec for passing to OpenAI:
-        # https://platform.openai.com/docs/guides/gpt/function-calling
-        # TODO: Make these types less verbose.
-        function_call_spec_callable: Optional[Callable[[
-        ], Tuple[Optional[List[OpenAIFunctionCallSpec]], Union[UserExplicitFunctionCall, UserFunctionCallMode]]]] = None,
-        # A callback to get the result of the function that the AI recommended you call.
-        function_callable_for_ai_function_call: Optional[Callable[[
-            MessageNode], Tuple[Optional[Any], Optional[str]]]] = None,
-        interrogation_callback: Optional[InterrogationProtocol] = None,
-
+    events: List[str],
+    system_message: MessageNode,
+    ai_driver: AIDriver,
+    # The callback that can given an EventNode give you the raw string
+    # message content used in user messages to the AI.
+    message_content_formatter: Callable[[EventNode], str],
+    # A callback that gets you the function call spec for passing to OpenAI:
+    # https://platform.openai.com/docs/guides/gpt/function-calling
+    # TODO: Make these types less verbose.
+    function_call_spec_callable: Optional[
+        Callable[
+            [],
+            Tuple[
+                Optional[List[OpenAIFunctionCallSpec]],
+                Union[UserExplicitFunctionCall, UserFunctionCallMode],
+            ],
+        ]
+    ] = None,
+    # A callback to get the result of the function that the AI recommended you call.
+    function_callable_for_ai_function_call: Optional[
+        Callable[[MessageNode], Tuple[Optional[Any], Optional[str]]]
+    ] = None,
+    interrogation_callback: Optional[InterrogationProtocol] = None,
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
     """
     # TODO: Probably make this part of the AIDriver class, since its tightly coupled to that.
-    Drives the AIDriver by sending it a System message + User message at first then 
+    Drives the AIDriver by sending it a System message + User message at first then
     it can send .
     Maintains history of the message linked to the processing of the event.
     """
@@ -141,16 +174,19 @@ def driver_wrapper(
     while True:
         # Send the system prompt every time.
         try:
-            logger.debug('>>')
-            assert isinstance(event_node, EventNode), f'{type(event_node)}'
+            logger.debug(">>")
+            assert isinstance(event_node, EventNode), f"{type(event_node)}"
             # An event is started
             if not event_node.history:
                 event_node.history = []
             event_node.history.append(system_message)
             # The function call should happen if its the last message from the user only.
             # 1. Should a function be called?
-            message_function_call_spec, explicit_fn_call = function_call_spec_callable(
-            ) if function_call_spec_callable is not None else (None, None)
+            message_function_call_spec, explicit_fn_call = (
+                function_call_spec_callable()
+                if function_call_spec_callable is not None
+                else (None, None)
+            )
             user_message = MessageNode(
                 role=Role.user,
                 message_content=message_content_formatter(event_node),
@@ -159,61 +195,77 @@ def driver_wrapper(
             )
             event_node.history.append(user_message)
 
-            logger.debug('PreSend')
+            logger.debug("PreSend")
 
             ai_message_or_error = driver_gen.send(
-                [system_message, user_message])
+                [system_message, user_message]
+            )
             if isinstance(ai_message_or_error, ValidationError):
                 # TODO: Handle other types of errors that cannot be retried
                 yield event_node, ai_message_or_error
             else:
                 ai_message = cast(MessageNode, ai_message_or_error)
                 assert isinstance(ai_message, MessageNode)
-                logger.debug('PostSend')
+                logger.debug("PostSend")
                 event_node.history.append(ai_message)
                 if ai_message.ai_function_call:
-                    assert function_callable_for_ai_function_call is not None, (
-                        "AI wants to call a function but no user function to call one was provided."
-                    )
-                    fn_call_result, fn_call_result_str = function_callable_for_ai_function_call(
-                        ai_message)
+                    assert (
+                        function_callable_for_ai_function_call is not None
+                    ), "AI wants to call a function but no user function to call one was provided."
+                    (
+                        fn_call_result,
+                        fn_call_result_str,
+                    ) = function_callable_for_ai_function_call(ai_message)
                     logger.debug("AI Function called")
-                    event_node.history.append(MessageNode(
-                        role=Role.function,
-                        ai_function_call_result=fn_call_result_str,
-                        ai_function_call_result_name=ai_message.ai_function_call.name
-                    ))
+                    event_node.history.append(
+                        MessageNode(
+                            role=Role.function,
+                            ai_function_call_result=fn_call_result_str,
+                            ai_function_call_result_name=ai_message.ai_function_call.name,
+                        )
+                    )
                     event_node.event_obj = fn_call_result
                 else:
                     logger.debug("No AI Function call")
-                logger.debug('>>>')
+                logger.debug(">>>")
                 if ai_message.message_content:
                     logger.debug(
-                        f"Got message_content from AI:\n {ai_message.message_content}")
+                        f"Got message_content from AI:\n {ai_message.message_content}"
+                    )
                 # Human interaction with AI if set is managed here.
                 if interrogation_callback is not None:
-                    interrogation_message = interrogation_callback.get_interrogation_message(
-                        event_node)
+                    interrogation_message = (
+                        interrogation_callback.get_interrogation_message(
+                            event_node
+                        )
+                    )
                     # User is now conversing with the AI, trying to get it to fix its responses.
                     while interrogation_message is not None:
                         assert interrogation_message.role == Role.user
                         ai_message = driver_gen.send(
-                            interrogation_message)  # type: ignore
+                            interrogation_message
+                        )  # type: ignore
                         # TODO: make interrogation events handle function calls
                         # once that is done we can
-                        assert isinstance(
-                            ai_message, MessageNode
-                        ) and ai_message.role == Role.assistant
+                        assert (
+                            isinstance(ai_message, MessageNode)
+                            and ai_message.role == Role.assistant
+                        )
                         event_node.history.append(interrogation_message)
 
                         event_node.history.append(ai_message)
-                        interrogation_message = interrogation_callback.get_interrogation_message(
-                            event_node)
+                        interrogation_message = (
+                            interrogation_callback.get_interrogation_message(
+                                event_node
+                            )
+                        )
                 yield event_node, None
                 event_node = driver_gen.send(None)  # type: ignore
 
         except StopIteration as excinfo:
-            assert excinfo.value == 'Done', f"Expected StopIteration('Done') instead got: {excinfo}"
+            assert (
+                excinfo.value == "Done"
+            ), f"Expected StopIteration('Done') instead got: {excinfo}"
             logger.debug(excinfo)
             break
 
@@ -237,14 +289,16 @@ class AltAI:
             self.model = "gpt-3.5-turbo-16k"
 
     def _send_with_function(  # type: ignore
-            send_fn: Callable[[AltAI, List[MessageNode]], MessageNode]
+        send_fn: Callable[[AltAI, List[MessageNode]], MessageNode]
     ) -> Callable[[Any, List[MessageNode]], MessageNode]:
         """
         Custom logic to send a message to the AI and then send the function call if requested.
         """
+
         def wrapper(slf, context: List[MessageNode]):
             context_messages = [
-                i for i in EventNode.context_to_openai_api_messages(context)]
+                i for i in EventNode.context_to_openai_api_messages(context)
+            ]
             functions = None
             explicit_fn_call = None
             # N2S(Ref1): Move the allowed roles with functions to a config about
@@ -255,13 +309,17 @@ class AltAI:
                     # Only call the function if it was the last guy.
                     functions = context_messages[-1].pop("functions", None)
                     explicit_fn_call = context_messages[-1].pop(
-                        "explicit_fn_call", None)
+                        "explicit_fn_call", None
+                    )
             else:
                 raise ValueError(
-                    "Last message must be from user role. Msg Stream:"+'\n'.join([str(i) for i in context]))
+                    "Last message must be from user role. Msg Stream:"
+                    + "\n".join([str(i) for i in context])
+                )
             try:
-                val = send_fn(slf, context_messages, functions,
-                              explicit_fn_call)  # type: ignore
+                val = send_fn(
+                    slf, context_messages, functions, explicit_fn_call
+                )  # type: ignore
                 return val
             finally:
                 context_messages[-1]["functions"] = functions
@@ -270,12 +328,14 @@ class AltAI:
         return wrapper
 
     @_send_with_function  # type: ignore
-    def send(self, context_messages: List[Dict[str, str]], functions, explicit_fn_call) -> MessageNode:
-
+    def send(
+        self,
+        context_messages: List[Dict[str, str]],
+        functions,
+        explicit_fn_call,
+    ) -> MessageNode:
         response = self._try_completion(
-            context_messages,
-            functions=functions,
-            fn_call=explicit_fn_call
+            context_messages, functions=functions, fn_call=explicit_fn_call
         )
         chat, func_call = _chat_function_call_from_response(response)
 
@@ -288,8 +348,9 @@ class AltAI:
         return MessageNode(
             role=Role.assistant,
             message_content="".join(chat) if chat else None,
-            ai_function_call=(AIFunctionCall.model_validate(func_call)
-                              if func_call else None)
+            ai_function_call=(
+                AIFunctionCall.model_validate(func_call) if func_call else None
+            ),
         )
 
     def _try_completion(self, messages, functions=None, fn_call=None):
@@ -317,7 +378,9 @@ class AltAI:
         return response
 
 
-def _chat_function_call_from_response(response) -> Tuple[List[str], Optional[Dict[str, Optional[str]]]]:
+def _chat_function_call_from_response(
+    response,
+) -> Tuple[List[str], Optional[Dict[str, Optional[str]]]]:
     chat: List[str] = []
     func_call = None
     for chunk in response:
@@ -335,9 +398,7 @@ def _chat_function_call_from_response(response) -> Tuple[List[str], Optional[Dic
                 if "name" in delta.function_call:
                     func_call["name"] = delta.function_call["name"]
                 if "arguments" in delta.function_call:
-                    func_call["arguments"] += delta.function_call[
-                        "arguments"
-                    ]
+                    func_call["arguments"] += delta.function_call["arguments"]
             if "content" in delta:
                 # Key may be there but None
                 msg = delta.get("content", "") or ""
@@ -378,11 +439,16 @@ class EmbeddingSearch:
     def fetch_embeddings(self, lsts: List[str]) -> List:
         # TODO add the user parameter to the request to monitor any misuse.
         embedding_data = _fetch_embeddings(model=self.model, input=lsts)
-        if embedding_data and 'data' in embedding_data and len(embedding_data['data'][0]) > 0:
-            return embedding_data['data'][0]['embedding']
+        if (
+            embedding_data
+            and "data" in embedding_data
+            and len(embedding_data["data"][0]) > 0
+        ):
+            return embedding_data["data"][0]["embedding"]
         else:
             raise Exception(
-                f"No embeddings or empty results returned from OpenAI API:\n{str(embedding_data)})")
+                f"No embeddings or empty results returned from OpenAI API:\n{str(embedding_data)})"
+            )
 
 
 @retry(

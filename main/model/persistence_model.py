@@ -1,9 +1,10 @@
-import json
+"""
+Models used for abstracting away data operations.
+"""
 import logging
 from dataclasses import asdict
 from typing import Dict, List, Optional
 
-from dataclasses_json import DataClassJsonMixin, dataclass_json
 from sqlalchemy import (
     JSON,
     Column,
@@ -28,6 +29,10 @@ Base = declarative_base()
 
 
 class ParsedEventTable(Base):
+    """
+    Table that holds the top level event and parsing info parsed from unstructured event data.
+    """
+
     __tablename__ = "parsed_events"
 
     id = Column(Integer, primary_key=True)
@@ -73,7 +78,7 @@ class ParsedEventEmbeddingsTable(Base):
 
 
 def add_event(
-    engine: Engine,
+    engine,
     event: Optional[Event],
     original_text: str,
     failure_reason: Optional[str],
@@ -111,10 +116,10 @@ def add_event(
         session.add(event_table)
         session.commit()
         return event_table.id  # type: ignore
-    except SQLAlchemyError as e:
+    except SQLAlchemyError as error:
         session.rollback()
-        logger.error(f"Failed to add event {original_text} to database!")
-        logger.exception(e)
+        logger.error("Failed to add event %s to database!", original_text)
+        logger.exception(error)
 
     finally:
         session.close()
@@ -136,11 +141,13 @@ def get_max_id_by_version_and_filename(engine, version, filename):
             .scalar()
         )
         return max_id
-    except SQLAlchemyError as e:
+    except SQLAlchemyError as error:
         logger.error(
-            f"Failed to retrieve the max id from ParsedEventTable for version: {version} and filename: {filename}!"
+            "Failed to retrieve the max id from ParsedEventTable for version: %s and filename: %s!",
+            version,
+            filename,
         )
-        logger.exception(e)
+        logger.exception(error)
     finally:
         session.close()
 
@@ -163,11 +170,13 @@ def get_num_events_by_version_and_filename(
             .scalar()
         )
         return num_events
-    except SQLAlchemyError as e:
+    except SQLAlchemyError as error:
         logger.error(
-            f"Failed to retrieve the number of events from ParsedEventTable for version: {version} and filename: {filename}!"
+            "Failed to retrieve the number of events from ParsedEventTable for version: %s  and filename: %s!",
+            version,
+            filename,
         )
-        logger.exception(e)
+        logger.exception(error)
     finally:
         session.close()
     return 0
@@ -192,18 +201,21 @@ def get_column_by_version_and_filename(
 
         # The query returns a tuple, so we get the first item
         return [value[0] for value in column_values]
-    except SQLAlchemyError as e:
+    except SQLAlchemyError as error:
         logger.error(
-            f"Failed to retrieve the {column} from ParsedEventTable for version: {version} and filename: {filename}!"
+            "Failed to retrieve the %s from ParsedEventTable for version: %s and filename: %s!",
+            column,
+            version,
+            filename,
         )
-        logger.exception(e)
+        logger.exception(error)
     finally:
         session.close()
     return []
 
 
 def get_parsed_events(
-    engine: Engine,
+    engine,
     filename: str,
     version: str,
     columns: Optional[List[Column]] = None,
@@ -235,9 +247,7 @@ def get_parsed_events(
 # How can I relate them to a person's input so that I can personalize what someone sees?
 
 
-def insert_parsed_event_embeddings(
-    engine: Engine, events: List[Dict[str, str]]
-):
+def insert_parsed_event_embeddings(engine, events: List[Dict[str, str]]):
     Session = sessionmaker(bind=engine)
     session = Session()
     # Query the database for the given column with the given version and filename

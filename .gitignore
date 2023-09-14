@@ -31,3 +31,4 @@ notebooks/*
 examples/*
 main/utils/ai_adhoc.py
 main/utils/scratch.py
+geodata/

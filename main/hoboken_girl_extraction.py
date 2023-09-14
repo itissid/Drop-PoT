@@ -1,12 +1,10 @@
 import datetime
-import json
 import logging
 import logging.config
-import os
 import re
 from dataclasses import asdict
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 import click
 import typer
@@ -16,41 +14,51 @@ from sqlalchemy import create_engine
 from sqlalchemy_utils import create_database, database_exists
 
 from main.commands.embedding_commands import demo_retrieval  # index_events,
-from main.commands.embedding_commands import (index_event_embeddings,
-                                              index_mood_embeddings,
-                                              index_moods)
+from main.commands.embedding_commands import (
+    index_event_embeddings,
+    index_mood_embeddings,
+    index_moods,
+)
 from main.hoboken_girl.function_call import hoboken_girl_event_function_param
 from main.lib.ai import AIDriver, AltAI, driver_wrapper
 from main.lib.db import DB
 from main.lib.interrogation import InteractiveInterrogationProtocol
-from main.model.ai_conv_types import (EventNode, InterrogationProtocol,
-                                      MessageNode, Role)
+from main.model.ai_conv_types import (
+    EventNode,
+    InterrogationProtocol,
+    MessageNode,
+    Role,
+)
 from main.model.mood_model import Base as MoodBase
 from main.model.persistence_model import Base as PersistenceBase
 from main.model.persistence_model import (
-    ParsedEventTable, add_event, get_column_by_version_and_filename,
-    get_num_events_by_version_and_filename)
+    add_event,
+    get_num_events_by_version_and_filename,
+)
 from main.model.types import Event, create_event
-from main.utils.cli_utils import (_optionally_format_colorama, ask_user_helper,
-                                  choose_file, formatted_dict,
-                                  would_you_like_to_continue)
+from main.utils.cli_utils import (
+    _optionally_format_colorama,
+    ask_user_helper,
+    choose_file,
+    formatted_dict,
+    would_you_like_to_continue,
+)
 from main.utils.color_formatter import ColoredFormatter
-from main.utils.prompt_utils import (base_prompt_hoboken_girl,
-                                     default_parse_event_prompt)
+from main.utils.prompt_utils import (
+    base_prompt_hoboken_girl,
+    default_parse_event_prompt,
+)
 from main.utils.scraping import get_documents
 
 app = typer.Typer()
 
 # LOGGING #
-log_format = "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
+LOG_FORMAT = "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s",
-    handlers=[
-        logging.FileHandler("app.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler("app.log"), logging.StreamHandler()],
 )
 
 logger = logging.getLogger(__name__)
@@ -64,7 +72,7 @@ def setup(
     ctx: typer.Context,
     loglevel: str = typer.Option("INFO", help="Set the log level"),
     force_initialize_db: bool = False,
-    test_db: bool = False
+    test_db: bool = False,
 ):
     """
     Setup logging configuration.
@@ -72,15 +80,15 @@ def setup(
     # Set the log level of the logger according to the command line argument
     loglevel = loglevel.upper()
     if loglevel not in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
-        logger.error(f"Invalid log level: {loglevel}. Defaulting to INFO.")
+        logger.error("Invalid log level: %s. Defaulting to INFO.", loglevel)
         loglevel = "INFO"
     print(f"loglevel: {loglevel}")
     root_logger = logging.getLogger()
     root_logger.setLevel(loglevel)
-    colored_formatter = ColoredFormatter(log_format)
+    colored_formatter = ColoredFormatter(LOG_FORMAT)
     for handler in root_logger.handlers:
         handler.setFormatter(colored_formatter)
-    logger.debug(f"In callback {ctx.invoked_subcommand}")
+    logger.debug("In callback %s", ctx.invoked_subcommand)
     click.get_current_context().obj = {}
 
     obj = click.get_current_context().obj
@@ -92,32 +100,50 @@ def setup(
         logger.info("Initializing Drop database")
         _validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
-    elif (ctx.invoked_subcommand == "index-moods"):
-        from model.mood_model import (MoodJsonTable,
-                                      SubmoodBasedEmbeddingTextAccessorTable)
+    elif ctx.invoked_subcommand == "index-moods":
+        # pylint: disable=import-outside-toplevel,unused-import
+        from main.model.mood_model import (
+            MoodJsonTable,
+            SubmoodBasedEmbeddingTextAccessorTable,
+        )
+
         _validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-events":
-        from model.persistence_model import ParsedEventTable
+        # pylint: disable=import-outside-toplevel,unused-import
+        from main.model.persistence_model import ParsedEventTable
+
         _validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-mood-embeddings":
-        from model.mood_model import SubmoodBasedEmbeddingsTable
+        # pylint: disable=import-outside-toplevel,unused-import
+        from main.model.mood_model import SubmoodBasedEmbeddingsTable
+
         _validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
-    elif ctx.invoked_subcommand == 'index-event-embeddings':
-        from model.persistence_model import ParsedEventEmbeddingsTable
+    elif ctx.invoked_subcommand == "index-event-embeddings":
+        # pylint: disable=import-outside-toplevel,unused-import
+        from main.model.persistence_model import ParsedEventEmbeddingsTable
+
         _validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif force_initialize_db:
         logger.info("Force Initializing Drop database.")
         _validate_database(test_db=test_db)
-        from model.persistence_model import (ParsedEventEmbeddingsTable,
-                                             ParsedEventTable)
+        # pylint: disable=import-outside-toplevel,unused-import
+        from main.model.persistence_model import (
+            ParsedEventEmbeddingsTable,
+            ParsedEventTable,
+        )
+
         PersistenceBase.metadata.create_all(bind=obj["engine"])
-        from model.mood_model import (MoodJsonTable,
-                                      SubmoodBasedEmbeddingsTable,
-                                      SubmoodBasedEmbeddingTextAccessorTable)
+        # pylint: disable=import-outside-toplevel
+        from main.model.mood_model import (
+            MoodJsonTable,
+            SubmoodBasedEmbeddingsTable,
+            SubmoodBasedEmbeddingTextAccessorTable,
+        )
+
         MoodBase.metadata.create_all(bind=obj["engine"])
 
 
@@ -139,6 +165,7 @@ def _validate_database(test_db: bool = False):
     else:
         print("Engine already Exists")
 
+
 # END LOGGING #
 
 
@@ -156,24 +183,25 @@ def ingest_urls(
         raise typer.Exit(code=1)
     input_path = input_path / f"{run_prefix}_ingestion"
     ingestion_db = DB(input_path)
-    ai = AltAI()
-    _ingest_urls_helper(urls, ingestion_db, ai)
+    alt_ai = AltAI()
+    _ingest_urls_helper(urls, ingestion_db, alt_ai)
 
 
 def _ingest_urls_helper(
     urls: List[str],
     db: DB,
-    ai: AltAI,
+    alt_ai: AltAI,
 ) -> dict[str, str]:
     """Ingest a url and return the path to the scraped file."""
 
     # Ask AI to create 3 file name suggestions for this parsed file.
     def ask() -> MessageNode:
         now = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        return ai.send([
-            MessageNode(
-                role=Role.system,
-                message_content=f"""
+        return alt_ai.send(
+            [
+                MessageNode(
+                    role=Role.system,
+                    message_content=f"""
         I want you to suggest at least 3 *unique* file names for each of the URL I will provide.
 
         Here are the instructions: 
@@ -197,14 +225,17 @@ def _ingest_urls_helper(
         }}]
         ```
         """,
-            ), MessageNode(
-                role=Role.user,
-                message_content=f"Here are the URLS. I want you to suggest *3 unique* file names for each based on previous instructions: '\n'.join({urls})",
-            )])
+                ),
+                MessageNode(
+                    role=Role.user,
+                    message_content=f"Here are the URLS. I want you to suggest *3 unique* file names for each based on previous instructions: '\n'.join({urls})",
+                ),
+            ]
+        )
 
     message = ask()
     assert message.message_content is not None
-    json_content = message.message_content.lstrip('`').rstrip('`')
+    json_content = message.message_content.lstrip("`").rstrip("`")
     url_file_names = choose_file(json_content)
     # Sanity check
     if len(url_file_names) != len(urls):
@@ -312,7 +343,7 @@ def extract_serialize_events(
         # SQLLite as a "queue" for such things.
         pass
     if not events:
-        logger.warn("No events found. Exiting")
+        logger.warning("No events found. Exiting")
         return
 
     ai = AltAI()
@@ -321,15 +352,21 @@ def extract_serialize_events(
     system_message = MessageNode(
         role=Role.system,
         message_content=base_prompt_hoboken_girl(
-            cities, date.strftime("%Y-%m-%d")),
+            cities, date.strftime("%Y-%m-%d")
+        ),
     )
     num_errors = 0
-    driver_wrapper_gen = hoboken_girl_driver_wrapper(events, system_message, ai_driver,
-                                                     interrogation_callback=InteractiveInterrogationProtocol())
+    driver_wrapper_gen = hoboken_girl_driver_wrapper(
+        events,
+        system_message,
+        ai_driver,
+        interrogation_callback=InteractiveInterrogationProtocol(),
+    )
     for i, (event, error) in enumerate(driver_wrapper_gen):
         if error:
             assert isinstance(
-                error, ValidationError), "Only validation error expected to be handled. You may want to add more error handling here."
+                error, ValidationError
+            ), "Only validation error expected to be handled. You may want to add more error handling here."
             assert event.history is not None
             add_event(
                 ctx.obj["engine"],
@@ -352,52 +389,53 @@ def extract_serialize_events(
                 filename=ingestable_article_file.name,
                 version=version,
             )
-        except Exception as e:
+        except Exception as error:  # pylint: disable=broad-except
             engine = ctx.obj["engine"]
-            id = add_event(
+            id = add_event(  # pylint: disable=invalid-name
                 engine,
                 event=None,
                 original_text=event.raw_event_str,
                 replay_history=event.history,
-                failure_reason=str(e),
+                failure_reason=str(error),
                 filename=ingestable_article_file.name,
                 version=version,
             )
-            logger.exception(e)
-            logger.warn(f"Event id #{id} saved with its error")
+            logger.exception(error)
+            logger.warning("Event id #%d saved with its error", id)
             if num_errors > max_acceptable_errors:
                 logger.error(
-                    f"Too many errors. Stopping processing. Please fix the errors and run the command again."
+                    "Too many errors. Stopping processing. Please fix the errors and run the command again."
                 )
                 return
             num_errors += 1
         finally:
-            logger.info(f"Processed event {i}")
+            logger.info("Processed event %d", i)
 
 
 def hoboken_girl_driver_wrapper(
-        # TODO: This functions does not do much and is actually part of the intergration test case.
-        # I need to remove this function and instead just test the driver_wrapper directly.
-        events: List[str],
-        system_message: MessageNode,
-        ai_driver: AIDriver,
-        interrogation_callback: Optional[InterrogationProtocol] = None,
-
+    # TODO: This functions does not do much and is actually part of the intergration test case.
+    # I need to remove this function and instead just test the driver_wrapper directly.
+    events: List[str],
+    system_message: MessageNode,
+    ai_driver: AIDriver,
+    interrogation_callback: Optional[InterrogationProtocol] = None,
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
-
     driver_gen = driver_wrapper(
         events,
         system_message,
         ai_driver,
         message_content_formatter=lambda event_node: default_parse_event_prompt(
-            event=event_node.raw_event_str),
+            event=event_node.raw_event_str
+        ),
         function_call_spec_callable=hoboken_girl_event_function_param,
         function_callable_for_ai_function_call=call_ai_generated_function_for_event,
         interrogation_callback=interrogation_callback,
     )
     for event, error in driver_gen:
         if isinstance(event, EventNode):
-            assert event.history, "No conversational record found for event. Something is very wrong."
+            assert (
+                event.history
+            ), "No conversational record found for event. Something is very wrong."
             yield event, error
         else:
             raise NotImplementedError("Only EventNode is supported for now.")
@@ -409,8 +447,9 @@ ALLOWED_FUNCTIONS = {
 }
 
 
-def call_ai_generated_function_for_event(ai_message: MessageNode) -> Tuple[Optional[Event], Optional[str]]:
-
+def call_ai_generated_function_for_event(
+    ai_message: MessageNode,
+) -> Tuple[Optional[Event], Optional[str]]:
     content = ai_message.message_content
 
     logger.debug(content)  # Typically empty if there is a function call.
@@ -440,7 +479,8 @@ def call_ai_generated_function_for_event(ai_message: MessageNode) -> Tuple[Optio
         return event_obj, f"{fn_name}({str(event_obj)})"
     else:
         logger.warn(
-            f"*** No function name found or not in Allowed functions list: {','.join(ALLOWED_FUNCTIONS.keys())}! for event"
+            "*** No function name found or not in Allowed functions list: %s! for event",
+            {",".join(ALLOWED_FUNCTIONS.keys())},
         )
         logger.warn(f"Last message recieved from AI: {content}")
     return None, None
@@ -454,15 +494,15 @@ def _event_gen(ingestable_article_file: Path):
         all_text = "\n".join(lines)
         # split the text on the $$ delimiter using regex and strip leading and trailing newlines, whitespaces
         # TODO: Replace with a yield function
-        events = [
-            event.strip() for event in re.split(r"\$\$\$", all_text)
-        ]
+        events = [event.strip() for event in re.split(r"\$\$\$", all_text)]
         ask_user_helper(
             "There are {num_events} events in the file with an average of {avg} tokens per event.",
             data_to_format={
                 "num_events": str(len(events)),
-                "avg": str(sum(len(event.split(" ")) for event in events)
-                           / (len(events) + 1)),
+                "avg": str(
+                    sum(len(event.split(" ")) for event in events)
+                    / (len(events) + 1)
+                ),
             },
         )
         # Ask if user if all is good before proceeding.
