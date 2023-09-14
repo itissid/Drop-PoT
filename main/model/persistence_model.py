@@ -4,8 +4,17 @@ from dataclasses import asdict
 from typing import Dict, List, Optional
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
-from sqlalchemy import (JSON, Column, Engine, ForeignKey, Integer, LargeBinary,
-                        String, Text, func, text)
+from sqlalchemy import (
+    JSON,
+    Column,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -32,7 +41,22 @@ class ParsedEventTable(Base):
     replay_history = Column(JSON, nullable=True)
     version = Column(String, nullable=False)
     parsed_event_embedding = relationship(
-        "ParsedEventEmbeddingsTable", uselist=False, back_populates="parsed_event")
+        "ParsedEventEmbeddingsTable",
+        uselist=False,
+        back_populates="parsed_event",
+    )
+
+
+class GeoAddresses(Base):
+    __tablename__ = "GeoAddresses"
+    id = Column(Integer, primary_key=True)
+    parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
+    address = Column(String, nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    parsed_event = relationship(
+        "ParsedEventTable", back_populates="geo_addresses"
+    )
 
 
 class ParsedEventEmbeddingsTable(Base):
@@ -44,7 +68,8 @@ class ParsedEventEmbeddingsTable(Base):
 
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
     parsed_event = relationship(
-        "ParsedEventTable", back_populates="parsed_event_embedding")
+        "ParsedEventTable", back_populates="parsed_event_embedding"
+    )
 
 
 def add_event(
@@ -68,8 +93,9 @@ def add_event(
     try:
         replay_history_json = None
         if replay_history:
-            replay_history_json = [message.model_dump(mode="json")
-                                   for message in replay_history]
+            replay_history_json = [
+                message.model_dump(mode="json") for message in replay_history
+            ]
         event_table = ParsedEventTable(
             name=event.name if event else None,
             description=event.description if event else None,
@@ -176,17 +202,24 @@ def get_column_by_version_and_filename(
     return []
 
 
-def get_parsed_events(engine: Engine, filename: str, version: str) -> List[ParsedEventTable]:
+def get_parsed_events(
+    engine: Engine,
+    filename: str,
+    version: str,
+    columns: Optional[List[Column]] = None,
+) -> List[ParsedEventTable]:
     Session = sessionmaker(bind=engine)
     session = Session()
     try:
         # Query the database for the given column with the given version and filename
-        parsed_events = (
+        query = (
             session.query(ParsedEventTable)
             .filter(ParsedEventTable.version == version)
             .filter(ParsedEventTable.filename == filename)
-            .all()
         )
+        if columns:
+            query = query.with_entities(*columns)
+        parsed_events = query.all()
         # add all parsed_events to a dictionary
         return parsed_events
 
@@ -196,12 +229,15 @@ def get_parsed_events(engine: Engine, filename: str, version: str) -> List[Parse
     finally:
         session.close()
 
+
 # Note to self: What relationship do our document embeddings have with the Moods?
 # How do I add relationships between them so it is easy to retrieve them later?
 # How can I relate them to a person's input so that I can personalize what someone sees?
 
 
-def insert_parsed_event_embeddings(engine: Engine, events: List[Dict[str, str]]):
+def insert_parsed_event_embeddings(
+    engine: Engine, events: List[Dict[str, str]]
+):
     Session = sessionmaker(bind=engine)
     session = Session()
     # Query the database for the given column with the given version and filename
