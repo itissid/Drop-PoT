@@ -49,6 +49,7 @@ from main.utils.prompt_utils import (
     default_parse_event_prompt,
 )
 from main.utils.scraping import get_documents
+from main.utils.db_utils import validate_database
 
 app = typer.Typer()
 
@@ -98,7 +99,7 @@ def setup(
         or force_initialize_db
     ):
         logger.info("Initializing Drop database")
-        _validate_database(test_db=test_db)
+        validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-moods":
         # pylint: disable=import-outside-toplevel,unused-import
@@ -107,29 +108,29 @@ def setup(
             SubmoodBasedEmbeddingTextAccessorTable,
         )
 
-        _validate_database(test_db=test_db)
+        validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-events":
         # pylint: disable=import-outside-toplevel,unused-import
         from main.model.persistence_model import ParsedEventTable
 
-        _validate_database(test_db=test_db)
+        validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-mood-embeddings":
         # pylint: disable=import-outside-toplevel,unused-import
         from main.model.mood_model import SubmoodBasedEmbeddingsTable
 
-        _validate_database(test_db=test_db)
+        validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-event-embeddings":
         # pylint: disable=import-outside-toplevel,unused-import
         from main.model.persistence_model import ParsedEventEmbeddingsTable
 
-        _validate_database(test_db=test_db)
+        validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif force_initialize_db:
         logger.info("Force Initializing Drop database.")
-        _validate_database(test_db=test_db)
+        validate_database(test_db=test_db)
         # pylint: disable=import-outside-toplevel,unused-import
         from main.model.persistence_model import (
             ParsedEventEmbeddingsTable,
@@ -145,28 +146,6 @@ def setup(
         )
 
         MoodBase.metadata.create_all(bind=obj["engine"])
-
-
-def _validate_database(test_db: bool = False):
-    obj = click.get_current_context().obj
-    if test_db:
-        url = "sqlite:///test_drop.db"
-    else:
-        url = "sqlite:///drop.db"
-    print(f"Initalizing database at {url}")
-    if not database_exists(url):  # Checks for the first time
-        create_database(url)  # Create new DB
-        print(
-            "New Database Created: "
-            + str(database_exists(obj.get("engine", url)))
-        )  # Verifies if database is there or not.
-    if not obj.get("engine"):
-        obj["engine"] = create_engine(url)
-    else:
-        print("Engine already Exists")
-
-
-# END LOGGING #
 
 
 @app.command()
@@ -228,7 +207,11 @@ def _ingest_urls_helper(
                 ),
                 MessageNode(
                     role=Role.user,
-                    message_content=f"Here are the URLS. I want you to suggest *3 unique* file names for each based on previous instructions: '\n'.join({urls})",
+                    message_content=(
+                        "Here are the URLS. I want you to suggest"
+                        + "*3 unique* file names for each based on previous"
+                        + f"instructions: '\n'.join({urls})"
+                    ),
                 ),
             ]
         )
@@ -240,7 +223,8 @@ def _ingest_urls_helper(
     # Sanity check
     if len(url_file_names) != len(urls):
         raise ValueError(
-            "Internal error: umber of URLs and file names don't match. Got {url_file_names}, for URLs {urls}"
+            "Internal error: umber of URLs and file names don't match. Got"
+            f"{url_file_names}, for URLs {urls}"
         )
     # URLs may get formatted differently by the llm so we extract the documents after wards.
     documents = get_documents([url for url, _ in url_file_names.items()])
@@ -267,7 +251,7 @@ def _post_process(file_path: Path) -> None:
     lines_to_insert = 1  # Number of lines above the matched pattern
 
     # Read the file
-    with open(file_path, "r") as file:
+    with open(file_path, "r", encoding="utf-8") as file:
         lines = file.readlines()
 
     # Find and insert new lines
@@ -281,7 +265,7 @@ def _post_process(file_path: Path) -> None:
         lines.insert(insert_index, new_line)
 
     # Write the updated file
-    with open(f"{file_path}_postprocessed", "w") as file:
+    with open(f"{file_path}_postprocessed", "w", encoding="utf-8") as file:
         file.writelines(lines)
 
 
@@ -294,11 +278,17 @@ def extract_serialize_events(
     date: datetime.datetime = typer.Argument(
         ...,
         formats=["%Y-%m-%d"],
-        help="The date when the web events appeared online. Typically sometime in the week when the events happened",
+        help=(
+            "The date when the web events appeared online. Typically sometime in the"
+            "week when the events happened"
+        ),
     ),
     ingestable_article_file: Optional[Path] = typer.Option(
         None,
-        help="The file with scraped data on events separated by the $$ delimiter. If no file then the user will input text events manually on the terminal.",
+        help=(
+            "The file with scraped data on events separated by the $$ delimiter. "
+            "If no file then the user will input text events manually on the terminal."
+        ),
     ),
     version: str = typer.Option(
         "v1", help="The version of the event extractor to use"
@@ -306,7 +296,6 @@ def extract_serialize_events(
     retry_only_errors: bool = False,
     # Large enough.
     max_acceptable_errors: int = int(1e7),
-    is_test: bool = True,
 ):
     """
     Call AI to parse all teh events in ingestable_article_file to extract
@@ -328,7 +317,8 @@ def extract_serialize_events(
     # A bit of sanity check.
     if items > 0:
         typer.echo(
-            f"There are already {items} events in the database for the {version} version and file {ingestable_article_file.name}"
+            (f"There are already {items} events in the database for"
+             f" the {version} version and file {ingestable_article_file.name}")
         )
         if not would_you_like_to_continue():
             return
@@ -366,7 +356,8 @@ def extract_serialize_events(
         if error:
             assert isinstance(
                 error, ValidationError
-            ), "Only validation error expected to be handled. You may want to add more error handling here."
+            ), ("Only validation error expected to be handled. You may want to add more " 
+                "error handling here.")
             assert event.history is not None
             add_event(
                 ctx.obj["engine"],
@@ -404,7 +395,8 @@ def extract_serialize_events(
             logger.warning("Event id #%d saved with its error", id)
             if num_errors > max_acceptable_errors:
                 logger.error(
-                    "Too many errors. Stopping processing. Please fix the errors and run the command again."
+                    ("Too many errors. Stopping processing."
+                     " Please fix the errors and run the command again.")
                 )
                 return
             num_errors += 1
@@ -478,22 +470,23 @@ def call_ai_generated_function_for_event(
         # The object returned by the function must have a reasonable __str__ to be useful.
         return event_obj, f"{fn_name}({str(event_obj)})"
     else:
-        logger.warn(
+        logger.warning(
             "*** No function name found or not in Allowed functions list: %s! for event",
             {",".join(ALLOWED_FUNCTIONS.keys())},
         )
-        logger.warn(f"Last message recieved from AI: {content}")
+        logger.warning("Last message recieved from AI:%s", content)
     return None, None
 
 
 def _event_gen(ingestable_article_file: Path):
     # NOTE: if we want to stream messages using the AIDriver, which is where the list of
     # events is used, we can make this a generator.
-    with open(ingestable_article_file, "r") as f:
-        lines = f.readlines()
+    with open(ingestable_article_file, "r", encoding="utf-8") as file:
+        lines = file.readlines()
         all_text = "\n".join(lines)
-        # split the text on the $$ delimiter using regex and strip leading and trailing newlines, whitespaces
-        # TODO: Replace with a yield function
+        # split the text on the $$ delimiter using regex and strip leading and
+        # trailing newlines, whitespaces
+        # Note: Consider Replace with a yield function
         events = [event.strip() for event in re.split(r"\$\$\$", all_text)]
         ask_user_helper(
             "There are {num_events} events in the file with an average of {avg} tokens per event.",

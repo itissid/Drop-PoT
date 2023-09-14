@@ -125,9 +125,7 @@ class TestSendToOpenAIAPI(unittest.TestCase):
                     name="get_current_weather",
                 ),
             ),
-            function_callable_for_ai_function_call=lambda ai_message: weather_fn_call_wrapper(
-                ai_message
-            ),
+            function_callable_for_ai_function_call=weather_fn_call_wrapper,
         )
         event, _ = next(driver)
         print(event.event_obj)
