@@ -5,18 +5,36 @@ from typing import Any, Dict, List
 from dataclasses_json import dataclass_json
 
 PROMPT = """
-Give me a comprehensive list of Human "moods" contextual to getting out and about in your local neighborhood at different times of the day and weekday and weekends when one has free time. I define Mood as primarily an emotion that one feels and not necessarily a verb or an action.  
+Give me a comprehensive list of Human "moods" contextual to getting out and
+about in your local neighborhood at different times of the day and weekday and
+weekends when one has free time. I define Mood as primarily an emotion that one
+feels and not necessarily a verb or an action.  
 
-Now though these moods are generally not necessarily verbs/actions unless they are embedded in the popular culture, for example "Lets go Partee!" or "Karaoke night" have a notion of verb/actions but they are also associated with what  "Mood" one is in.  I want you to pick only the most discriminative examples here for example "Dinner out" or "Brunch" could be be considered as being "in a  mood for" for but are not meeting my definition of emotion.
+Now though these moods are generally not necessarily verbs/actions unless they
+are embedded in the popular culture, for example "Lets go Partee!" or "Karaoke
+night" have a notion of verb/actions but they are also associated with what
+"Mood" one is in.  I want you to pick only the most discriminative examples here
+for example "Dinner out" or "Brunch" could be be considered as being "in a  mood
+for" for but are not meeting my definition of emotion.
 
 1. I want you to give me these moods, but also as many sub categories of those moods as possible for example :
 
-"Quiet Evening" can be divided into "Quiet evenings with friends", "Quiet evening for a stroll" etc.  The format should be `"<Mood>" : ["<SubMood1>",  ..."<SubMoodN>"]`
+"Quiet Evening" can be divided into "Quiet evenings with friends", "Quiet
+evening for a stroll" etc.  The format should be `"<Mood>" : ["<SubMood1>",
+..."<SubMoodN>"]`
 
-Ideally the things you want also enrich our moods, but we can't always find that in the City. But for each Mood/SubMood I want you to make up as many types of Place categories in a City and Events happening there that people might associate them with. Keep it general for example "Quiet evenings with friends" can be done as a "Game night at Home" or "Book reading club"  and "Quiet evening for a stroll" could be done "Walk In the park" or "Walking on the waterfront". "Wicked Fun" can be associated with "Going to a bar",  "Escape room".  Again the format is 
+Ideally the things you want also enrich our moods, but we can't always find that
+in the City. But for each Mood/SubMood I want you to make up as many types of
+Place categories in a City and Events happening there that people might
+associate them with. Keep it general for example "Quiet evenings with friends"
+can be done as a "Game night at Home" or "Book reading club"  and "Quiet evening
+for a stroll" could be done "Walk In the park" or "Walking on the waterfront".
+"Wicked Fun" can be associated with "Going to a bar",  "Escape room".  Again the
+format is:
 `<Mood>: [<Place/Activity1>, ....<Place/Activity N>]`
 
-Lastly for each Mood I want you to try and tell me some why do you think its a mood in popular culture. Quote some references or web links to corroborate.
+Lastly for each Mood I want you to try and tell me some why do you think its a
+mood in popular culture. Quote some references or web links to corroborate.
 """
 
 

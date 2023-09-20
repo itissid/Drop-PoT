@@ -226,9 +226,9 @@ def _ingest_urls_helper(
         )
     # URLs may get formatted differently by the llm so we extract the documents after wards.
     documents = get_documents([url for url, _ in url_file_names.items()])
-    typer.echo(
-        f"{','.join([(str(len(document)) + ' chars extracted for url: '+url) for url, document in documents.items()])} documents"
-    )
+    document_lengths = [f"{len(document)} chars extracted for url: {url}" for url, document in documents.items()]
+    result = f"{','.join(document_lengths)} documents"
+    typer.echo(result)
     # Save the documents!
     for url, file_name in url_file_names.items():
         db[file_name] = documents[url]

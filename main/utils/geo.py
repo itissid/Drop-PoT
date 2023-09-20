@@ -1,7 +1,6 @@
 import json
 import logging
 import traceback
-from json.decoder import JSONDecodeError
 from typing import Dict, Optional, Tuple
 
 import click
@@ -11,11 +10,8 @@ import typer
 from main.lib.ai import AltAI
 from main.model.ai_conv_types import MessageNode, Role
 from main.model.persistence_model import Base as PersistenceBase
-from main.model.persistence_model import (
-    ParsedEventTable,
-    add_geoaddress,
-    get_parsed_events,
-)
+from main.model.persistence_model import (ParsedEventTable, add_geoaddress,
+                                          get_parsed_events)
 from main.model.types import Event
 from main.utils.color_formatter import ColoredFormatter
 from main.utils.db_utils import validate_database

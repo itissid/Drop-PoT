@@ -284,6 +284,7 @@ sqlalchemy-stubs = "^0.4"
 
 [tool.poetry.group.tools.dependencies]
 interline-planetutils = {git = "https://github.com/interline-io/planetutils.git"}
+pylint = "^2.17.5"
 
 [tool.mypy]
 plugins = ["pydantic.mypy", "sqlmypy"]

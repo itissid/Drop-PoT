@@ -76,8 +76,7 @@ def add_geoaddress(
     longitude: Optional[float] = None,
     failure_reason: Optional[str] = None,
 ):
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
     try:
         geo_address = GeoAddresses(
             parsed_event_id=parsed_event_id,
@@ -119,8 +118,7 @@ def add_event(
     version: str,
     chat_history: Optional[List[str]] = None,
 ) -> int:
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()  # pylint: disable=invalid-name
     if event:
         event_dict = asdict(event)
         event_dict.pop("name", None)
@@ -159,13 +157,14 @@ def add_event(
 
 
 def get_max_id_by_version_and_filename(engine, version, filename):
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
 
     try:
         # Query the database for the maximum id value with the given version and filename
         max_id = (
-            session.query(func.max(ParsedEventTable.id))
+            session.query(
+                func.max(ParsedEventTable.id)  # pylint: disable=not-callable
+            )
             .filter(
                 ParsedEventTable.version == version,
                 ParsedEventTable.filename == filename,
@@ -188,8 +187,7 @@ def get_max_id_by_version_and_filename(engine, version, filename):
 def get_num_events_by_version_and_filename(
     engine, version: str, filename: str
 ) -> int:
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()  # pylint: disable=invalid-name
 
     try:
         # Query the database for the number of events with the given version and filename
@@ -217,9 +215,7 @@ def get_num_events_by_version_and_filename(
 def get_column_by_version_and_filename(
     engine, column: str, version: str, filename: str
 ) -> List[str]:
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
+    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
     try:
         # Query the database for the given column with the given version and filename
         column_values = (
@@ -252,8 +248,7 @@ def get_parsed_events(
     version: str,
     columns: Optional[List[Column]] = None,
 ) -> List[ParsedEventTable]:
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
     try:
         # Query the database for the given column with the given version and filename
         query = (
@@ -267,9 +262,9 @@ def get_parsed_events(
         # add all parsed_events to a dictionary
         return parsed_events
 
-    except SQLAlchemyError as e:
-        logger.exception(e)
-        raise e
+    except SQLAlchemyError as exc:
+        logger.exception(exc)
+        raise exc
     finally:
         session.close()
 
@@ -280,8 +275,7 @@ def get_parsed_events(
 
 
 def insert_parsed_event_embeddings(engine, events: List[Dict[str, str]]):
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
     # Query the database for the given column with the given version and filename
     embedding_lst = []
     for parsed_event in events:
