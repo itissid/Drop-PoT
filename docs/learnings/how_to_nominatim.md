@@ -8,4 +8,4 @@ Setting up docker  instance for querying.
  mediagis/nominatim:4.2
 
  How to reverse geocode?
- TODO: Call the API on docker and test.
+ TODO: Call the API on docker and test the reverse geocoding results.

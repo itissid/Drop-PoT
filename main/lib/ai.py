@@ -21,9 +21,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from collections import defaultdict
 from typing import (
     Any,
     Callable,
@@ -38,8 +36,7 @@ from typing import (
 )
 
 import openai
-from colorama import Fore
-from pydantic import UUID1, BaseModel, Field, Json, ValidationError
+from pydantic import UUID1, ValidationError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -113,12 +110,13 @@ class AIDriver:
                     context.append(user_message_node)
                 try:
                     msg_from_ai = self._ai.send(context)
-                except ValidationError as e:
+                except ValidationError as exc:
                     logger.error(
-                        f"Pydantic validation error in sending message to AI: {e.json()}"
+                        "Pydantic validation error in sending message to AI: %s ",
+                        exc.json(),
                     )
-                    yield e
                     # TODO: Test me
+                    yield exc
                     break
                 context.append(msg_from_ai)
 
@@ -288,7 +286,7 @@ class AltAI:
             )
             self.model = "gpt-3.5-turbo-16k"
 
-    def _send_with_function(  # type: ignore
+    def _send_with_function(  # pylint: disable=no-self-argument
         send_fn: Callable[[AltAI, List[MessageNode]], MessageNode]
     ) -> Callable[[Any, List[MessageNode]], MessageNode]:
         """
@@ -317,7 +315,7 @@ class AltAI:
                     + "\n".join([str(i) for i in context])
                 )
             try:
-                val = send_fn(
+                val = send_fn(  # pylint: disable=not-callable
                     slf, context_messages, functions, explicit_fn_call
                 )  # type: ignore
                 return val
@@ -354,7 +352,7 @@ class AltAI:
         )
 
     def _try_completion(self, messages, functions=None, fn_call=None):
-        logger.debug(f"Creating a new chat completion: {messages}")
+        logger.debug("Creating a new chat completion: %s", messages)
         try:
             if not functions:
                 response = completion_with_backoff(
@@ -372,9 +370,14 @@ class AltAI:
                     function_call=fn_call or None,
                     temperature=self.temperature,
                 )
-        except Exception as e:
-            logger.error(f"Error in chat completion: {e}")
-            raise e
+        except Exception as exc:
+            logger.error(
+                "Error in chat completion for messages %s \n functions: %s, function_call=%s",
+                str(messages),
+                str(functions),
+                str(fn_call),
+            )
+            raise exc
         return response
 
 
@@ -387,7 +390,9 @@ def _chat_function_call_from_response(
         try:
             delta = chunk["choices"][0]["delta"]
             if "function_call" in delta:
+                # pylint: disable=pointless-string-statement
                 """
+                This is what delta is like:
                 {'role': 'assistant', 'content': {
                     'function_call': {'name': 'get_current_weather',
                     'arguments': '{\n  "location": "Glasgow, Scotland",\n  "format": "celsius"\n}'}
@@ -403,8 +408,9 @@ def _chat_function_call_from_response(
                 # Key may be there but None
                 msg = delta.get("content", "") or ""
                 chat.append(msg)
-        except Exception as e:
-            raise e
+        except Exception as exc:
+            logger.error("Error %s for chunk: %s", chunk, exc)
+            raise exc
     return chat, func_call
 
 
@@ -424,17 +430,22 @@ def completion_with_backoff(**kwargs):
     return openai.ChatCompletion.create(**kwargs)
 
 
+class NoEmbeddingsFoundException(Exception):
+    pass
+
+
 class EmbeddingSearch:
     def __init__(self, model: str = "text-embedding-ada-002"):
         try:
             openai.Model.retrieve(model)
             self.model = model
-        except openai.InvalidRequestError as e:
-            logger.warn(
-                f"Embedding Model {model} not available for provided API key. "
+        except openai.InvalidRequestError as exc:
+            logger.error(
+                "Error occured %s Embedding Model %s not available for provided API key. ",
+                exc,
+                model,
             )
-            logger.exception(e)
-            raise e
+            raise exc
 
     def fetch_embeddings(self, lsts: List[str]) -> List:
         # TODO add the user parameter to the request to monitor any misuse.
@@ -445,10 +456,10 @@ class EmbeddingSearch:
             and len(embedding_data["data"][0]) > 0
         ):
             return embedding_data["data"][0]["embedding"]
-        else:
-            raise Exception(
-                f"No embeddings or empty results returned from OpenAI API:\n{str(embedding_data)})"
-            )
+        raise NoEmbeddingsFoundException(
+            "No embeddings or empty results returned from OpenAI API:",
+            str(embedding_data),
+        )
 
 
 @retry(

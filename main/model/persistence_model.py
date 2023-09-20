@@ -50,6 +50,9 @@ class ParsedEventTable(Base):
         uselist=False,
         back_populates="parsed_event",
     )
+    geo_addresses = relationship(
+        "GeoAddresses", back_populates="related_parsed_events"
+    )
 
 
 class GeoAddresses(Base):
@@ -57,11 +60,40 @@ class GeoAddresses(Base):
     id = Column(Integer, primary_key=True)
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
     address = Column(String, nullable=False)
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
-    parsed_event = relationship(
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    failure_reason = Column(String, nullable=True)
+    related_parsed_events = relationship(
         "ParsedEventTable", back_populates="geo_addresses"
     )
+
+
+def add_geoaddress(
+    engine,
+    parsed_event_id: int,
+    address: str,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    failure_reason: Optional[str] = None,
+):
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    try:
+        geo_address = GeoAddresses(
+            parsed_event_id=parsed_event_id,
+            address=address,
+            latitude=latitude,
+            longitude=longitude,
+            failure_reason=failure_reason,
+        )
+        session.add(geo_address)
+        session.commit()
+    except SQLAlchemyError as error:
+        session.rollback()
+        logger.error("Failed to add geo address %s to database!", address)
+        logger.exception(error)
+    finally:
+        session.close()
 
 
 class ParsedEventEmbeddingsTable(Base):

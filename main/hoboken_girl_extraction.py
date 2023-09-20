@@ -10,8 +10,6 @@ import click
 import typer
 from colorama import Fore
 from pydantic import ValidationError
-from sqlalchemy import create_engine
-from sqlalchemy_utils import create_database, database_exists
 
 from main.commands.embedding_commands import demo_retrieval  # index_events,
 from main.commands.embedding_commands import (
