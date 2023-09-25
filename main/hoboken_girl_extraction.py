@@ -244,6 +244,7 @@ def post_process(file_path: Path = typer.Argument()) -> None:
 
 
 def _post_process(file_path: Path) -> None:
+    # pylint
     pattern = r"(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), [a-zA-Z]+ \d+(?:st|nd|rd|th) \| \d+(?::\d+)?(?:AM|PM)(?: – \d+(?::\d+)?(?:AM|PM))?|Ongoing until [a-zA-Z]+ \d+(?:st|nd|rd|th)"
     new_line = "\n$$$\n\n"  # New line to be inserted
     lines_to_insert = 1  # Number of lines above the matched pattern

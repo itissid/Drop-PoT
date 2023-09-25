@@ -273,18 +273,19 @@ class AltAI:
     Alternative to the AI class that calls the OpenAI API which works better with the Driver.
     """
 
-    def __init__(self, model: str = "gpt-4", temperature: float = 0.1):
+    def __init__(
+        self, model: str = "gpt-3.5-turbo-16k", temperature: float = 0.1
+    ):
         self.temperature = temperature
         try:
             openai.Model.retrieve(model)
             self.model = model
         except openai.InvalidRequestError:
-            print(
-                f"Model {model} not available for provided API key. Reverting "
-                "to gpt-3.5-turbo-16k. Sign up for the GPT-4 wait list here: "
-                "https://openai.com/waitlist/gpt-4-api"
+            logger.warning(
+                "Model %s not available for provided API key. Reverting to gpt-4.",
+                model,
             )
-            self.model = "gpt-3.5-turbo-16k"
+            self.model = "gpt-4"
 
     def _send_with_function(  # pylint: disable=no-self-argument
         send_fn: Callable[[AltAI, List[MessageNode]], MessageNode]

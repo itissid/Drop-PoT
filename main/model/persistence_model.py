@@ -6,6 +6,7 @@ from dataclasses import asdict
 from typing import Dict, List, Optional
 
 from sqlalchemy import (
+    Enum,
     JSON,
     Column,
     Float,
@@ -19,6 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.schema import UniqueConstraint
 
 from main.model.ai_conv_types import MessageNode
 from main.model.types import Event
@@ -99,12 +101,24 @@ class ParsedEventEmbeddingsTable(Base):
     __tablename__ = "ParsedEventEmbeddingsTable"
 
     id = Column(Integer, primary_key=True)
-    description_embedding = Column(LargeBinary, nullable=False)
+    embedding = Column(LargeBinary, nullable=False)
     embedding_version = Column(String, nullable=False)
+    embedding_type = Column(
+        Enum("description", "name", "name_description"),
+        nullable=True,
+    )
 
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
     parsed_event = relationship(
         "ParsedEventTable", back_populates="parsed_event_embedding"
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "parsed_event_id",
+            "embedding_version",
+            "embedding_type",
+            name="uq_embedding_details",
+        ),
     )
 
 
@@ -278,11 +292,12 @@ def insert_parsed_event_embeddings(engine, events: List[Dict[str, str]]):
     session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
     # Query the database for the given column with the given version and filename
     embedding_lst = []
-    for parsed_event in events:
+    for event in events:
         parsed_event_embedding = ParsedEventEmbeddingsTable(
-            description_embedding=parsed_event["embedding_vector"],
-            embedding_version=parsed_event["version"],
-            parsed_event_id=int(parsed_event["id"]),
+            embedding=event["embedding"],
+            embedding_type=event["embedding_type"],
+            embedding_version=event["embedding_version"],
+            parsed_event_id=int(event["parsed_event_id"]),
         )
         embedding_lst.append(parsed_event_embedding)
     try:

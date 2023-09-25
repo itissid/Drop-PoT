@@ -1,9 +1,4 @@
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Dict, List
-
-from dataclasses_json import dataclass_json
-
+# pylint: disable=line-too-long
 PROMPT = """
 Give me a comprehensive list of Human "moods" contextual to getting out and
 about in your local neighborhood at different times of the day and weekday and
@@ -36,7 +31,6 @@ format is:
 Lastly for each Mood I want you to try and tell me some why do you think its a
 mood in popular culture. Quote some references or web links to corroborate.
 """
-
 
 
 GEN_Z_HOBOKEN = [

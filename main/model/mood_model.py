@@ -1,4 +1,3 @@
-
 ###### Mood Tables ########################################################
 # See mood_seeds.py for the data.
 ###########################################################################
@@ -8,14 +7,12 @@ import json
 import logging
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import List
+from typing import List, Any
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
 from jsonpath_ng import parse
-from main.model.mood_seed import GEN_Z, GEN_Z_HOBOKEN, GEN_Z_NYC, MILLENIALS
 from sqlalchemy import (
     Column,
-    Engine,
     ForeignKey,
     Integer,
     LargeBinary,
@@ -23,10 +20,11 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     and_,
-    text,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import sessionmaker
+
+from main.model.mood_seed import GEN_Z, GEN_Z_HOBOKEN, GEN_Z_NYC, MILLENIALS
 
 Base = declarative_base()
 logger = logging.getLogger(__name__)
@@ -64,8 +62,8 @@ class MoodFlavors(str, Enum):
         elif self == MoodFlavors.GEN_Z_NYC:
             selected = GEN_Z_NYC
         else:
-            raise Exception(
-                f"New MoodFlavors: {self} added, but not implemented!"
+            raise ValueError(
+                "New MoodFlavors: %s added, but not implemented!", self
             )
         return [Mood.from_dict(i) for i in selected]
 
@@ -127,7 +125,7 @@ def insert_into_mood_json_table(
     sub_moods: List[SubMood],
     flavor: MoodFlavors,
     version: str,
-    engine: Engine,
+    engine: Any,
 ):
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -160,8 +158,8 @@ def insert_into_mood_json_table(
             session.commit()
             return mood_json_table_entry.id
         else:
-            logger.warn(
-                f"Already found record in MoodJsonTable for {record.id}"
+            logger.warning(
+                "Already found record in MoodJsonTable for %d", record.id
             )
             return record.id
     finally:
@@ -169,7 +167,7 @@ def insert_into_mood_json_table(
 
 
 def get_mood_json_entries(
-    mood: str, flavor: MoodFlavors, version: str, engine: Engine
+    mood: str, flavor: MoodFlavors, version: str, engine
 ) -> List[MoodJsonTable]:
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -191,9 +189,7 @@ def get_mood_json_entries(
         session.close()
 
 
-def insert_accessor_entries(
-    mood_id: int, submoods: List[SubMood], engine: Engine
-):
+def insert_accessor_entries(mood_id: int, submoods: List[SubMood], engine):
     entries = generate_submoods_json_accessors(mood_id, submoods)
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -329,7 +325,7 @@ def get_submood_embedding_text(
     return records
 
 
-def insert_into_embeddings_table(engine: Engine, embedding_entries: List[dict]):
+def insert_into_embeddings_table(engine, embedding_entries: List[dict]):
     Session = sessionmaker(bind=engine)
     session = Session()
 
