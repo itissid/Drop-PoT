@@ -1,7 +1,8 @@
 import json
+import logging
 from dataclasses import asdict
 from enum import Enum
-from typing import Any, Dict, List, cast
+from typing import Set, cast
 
 import typer
 from colorama import Fore
@@ -23,6 +24,9 @@ from main.model.persistence_model import (
     insert_parsed_event_embeddings,
 )
 from main.utils.cli_utils import _optionally_format_colorama, _pp
+
+logger = logging.getLogger(__name__)
+
 
 # TODO(Sid): Filter by th Submoods, place_or_activity text
 # 1. Generate embeddings for each mood and store them in a table(we don't need to train this)
@@ -141,8 +145,16 @@ def _sanity_check_before_inserting_embeddings(sub_mood, db_indexed_submood):
         )
 
 
+class EmbeddingType(Enum):
+    DESCRIPTION = "description"
+    NAME_DESCRIPTION = "name_description"
+
+
 def index_event_embeddings(
     ctx: typer.Context,
+    embedding_types: list[EmbeddingType] = typer.Option(
+        [EmbeddingType.NAME_DESCRIPTION], help="The type of embedding to index"
+    ),
     filename: str = typer.Argument(
         help="The filename which is a key in the DB. Check drop.db file"
     ),
@@ -151,7 +163,17 @@ def index_event_embeddings(
         help="The version of the embedding data. Just an arbitrary string.",
     ),
 ):
+    """
+    Retrieve the embeddings and the 
+    """
     engine = ctx.obj["engine"]
+    if (
+        EmbeddingType.DESCRIPTION not in embedding_types
+        and EmbeddingType.NAME_DESCRIPTION not in embedding_types
+    ):
+        raise ValueError(
+            "Expect one of description of name_description embeddings to be specified."
+        )
     parsed_events = get_parsed_events(engine, filename, version)
     if len(parsed_events) == 0:
         typer.echo("No events found for given parameters.")
@@ -175,16 +197,20 @@ def index_event_embeddings(
             event_name = parsed_event.get("name", "")
             if event_description:
                 # Add a row to event_embeddings table for the description at the least.
-                event_embedding = {}
-                description_embedding = embedding_search.fetch_embeddings(
-                    [event_description]
-                )
-                event_embedding["embedding"] = encode(description_embedding)
-                event_embedding["embedding_type"] = "description"
-                event_embedding["embedding_version"] = version
-                event_embedding["parsed_event_id"] = parsed_event["id"]
-                event_embeddings.append(event_embedding)
-                if event_name:
+                if EmbeddingType.DESCRIPTION in embedding_types:
+                    event_embedding = {}
+                    description_embedding = embedding_search.fetch_embeddings(
+                        [event_description]
+                    )
+                    event_embedding["embedding"] = encode(description_embedding)
+                    event_embedding["embedding_type"] = "description"
+                    event_embedding["embedding_version"] = version
+                    event_embedding["parsed_event_id"] = parsed_event["id"]
+                    event_embeddings.append(event_embedding)
+                if (
+                    EmbeddingType.NAME_DESCRIPTION in embedding_types
+                    and event_name
+                ):
                     # Add a row to event_embeddings for name+description
                     event_embedding = {}
                     name_description_embedding = (
@@ -199,7 +225,8 @@ def index_event_embeddings(
                     event_embedding["embedding_version"] = version
                     event_embedding["parsed_event_id"] = parsed_event["id"]
                     event_embeddings.append(event_embedding)
-
+            else:
+                logger.debug("No description for event: %s", parsed_event["id"])
             insert_parsed_event_embeddings(engine, event_embeddings)
 
 

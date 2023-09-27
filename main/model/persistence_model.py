@@ -268,9 +268,40 @@ def get_parsed_events(
     return parsed_events
 
 
-# Note to self: What relationship do our document embeddings have with the Moods?
-# How do I add relationships between them so it is easy to retrieve them later?
-# How can I relate them to a person's input so that I can personalize what someone sees?
+@session_manager
+def get_parsed_embeddings_by_version_and_filename(
+    session, version: str, filename: str, embedding_type: str
+):
+    try:
+        results = (
+            session.query(
+                ParsedEventTable.id,
+                ParsedEventEmbeddingsTable.embedding,
+                ParsedEventTable.description,
+                ParsedEventTable.name,
+                ParsedEventTable.event_json,
+            )
+            .join(
+                ParsedEventEmbeddingsTable,
+                ParsedEventTable.id
+                == ParsedEventEmbeddingsTable.parsed_event_id,
+            )
+            .filter(
+                ParsedEventTable.version == version,
+                ParsedEventTable.filename == filename,
+                ParsedEventEmbeddingsTable.embedding_type == embedding_type,
+            )
+            .all()
+        )
+        return results
+    except SQLAlchemyError as error:
+        logger.error(
+            "Failed to retrieve data for version: %s and filename: %s!",
+            version,
+            filename,
+        )
+        logger.exception(error)
+        raise error
 
 
 @session_manager
