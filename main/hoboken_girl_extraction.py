@@ -43,7 +43,7 @@ from main.utils.cli_utils import (
 )
 from main.utils.color_formatter import ColoredFormatter
 from main.utils.db_utils import validate_database
-from main.utils.prompt_utils import (
+from main.prompts.hoboken_girl_prompt import (
     base_prompt_hoboken_girl,
     default_parse_event_prompt,
 )
@@ -101,7 +101,7 @@ def setup(
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-moods":
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.mood_model import (
+        from main.model.mood_model_unsupervised import (
             MoodJsonTable,
             SubmoodBasedEmbeddingTextAccessorTable,
         )
@@ -116,7 +116,7 @@ def setup(
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-mood-embeddings":
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.mood_model import SubmoodBasedEmbeddingsTable
+        from main.model.mood_model_unsupervised import SubmoodBasedEmbeddingsTable
 
         validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
@@ -137,7 +137,7 @@ def setup(
 
         PersistenceBase.metadata.create_all(bind=obj["engine"])
         # pylint: disable=import-outside-toplevel
-        from main.model.mood_model import (
+        from main.model.mood_model_unsupervised import (
             MoodJsonTable,
             SubmoodBasedEmbeddingsTable,
             SubmoodBasedEmbeddingTextAccessorTable,

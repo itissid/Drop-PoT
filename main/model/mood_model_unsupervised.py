@@ -63,11 +63,13 @@ class MoodFlavors(str, Enum):
             selected = GEN_Z_NYC
         else:
             raise ValueError(
-                "New MoodFlavors: %s added, but not implemented!", self
+                f"New MoodFlavors: {self} added, but not implemented!"
             )
         return [Mood.from_dict(i) for i in selected]
 
 
+###########################
+###### OLDER TABLES #######
 class MoodJsonTable(Base):  # type: ignore
     __tablename__ = "MoodJsonTable"
 
@@ -356,8 +358,8 @@ def insert_into_embeddings_table(engine, embedding_entries: List[dict]):
                 )
                 session.add(embeddings_table_entry)
         session.commit()
-    except Exception as e:
+    except Exception as exp:
         session.rollback()
-        raise e
+        raise exp
     finally:
         session.close()
