@@ -42,12 +42,12 @@ from main.utils.cli_utils import (
     would_you_like_to_continue,
 )
 from main.utils.color_formatter import ColoredFormatter
+from main.utils.db_utils import validate_database
 from main.utils.prompt_utils import (
     base_prompt_hoboken_girl,
     default_parse_event_prompt,
 )
 from main.utils.scraping import get_documents
-from main.utils.db_utils import validate_database
 
 app = typer.Typer()
 
@@ -226,7 +226,10 @@ def _ingest_urls_helper(
         )
     # URLs may get formatted differently by the llm so we extract the documents after wards.
     documents = get_documents([url for url, _ in url_file_names.items()])
-    document_lengths = [f"{len(document)} chars extracted for url: {url}" for url, document in documents.items()]
+    document_lengths = [
+        f"{len(document)} chars extracted for url: {url}"
+        for url, document in documents.items()
+    ]
     result = f"{','.join(document_lengths)} documents"
     typer.echo(result)
     # Save the documents!
@@ -316,8 +319,10 @@ def extract_serialize_events(
     # A bit of sanity check.
     if items > 0:
         typer.echo(
-            (f"There are already {items} events in the database for"
-             f" the {version} version and file {ingestable_article_file.name}")
+            (
+                f"There are already {items} events in the database for"
+                f" the {version} version and file {ingestable_article_file.name}"
+            )
         )
         if not would_you_like_to_continue():
             return
@@ -353,10 +358,10 @@ def extract_serialize_events(
     )
     for i, (event, error) in enumerate(driver_wrapper_gen):
         if error:
-            assert isinstance(
-                error, ValidationError
-            ), ("Only validation error expected to be handled. You may want to add more " 
-                "error handling here.")
+            assert isinstance(error, ValidationError), (
+                "Only validation error expected to be handled. You may want to add more "
+                "error handling here."
+            )
             assert event.history is not None
             add_event(
                 ctx.obj["engine"],
@@ -394,8 +399,10 @@ def extract_serialize_events(
             logger.warning("Event id #%d saved with its error", id)
             if num_errors > max_acceptable_errors:
                 logger.error(
-                    ("Too many errors. Stopping processing."
-                     " Please fix the errors and run the command again.")
+                    (
+                        "Too many errors. Stopping processing."
+                        " Please fix the errors and run the command again."
+                    )
                 )
                 return
             num_errors += 1

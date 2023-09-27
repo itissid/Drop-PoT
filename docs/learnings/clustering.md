@@ -60,6 +60,8 @@ there will likely be only one Mood and a few Submoods for the data I provide.
     ]
 } 
 ```
+8. The crowd is young and from {city_name} so the moods and submoods should be
+named as such Millenials and Gen Z.
 
 ----------------------
 -- Complete example --

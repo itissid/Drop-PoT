@@ -6,9 +6,9 @@ from dataclasses import asdict
 from typing import Dict, List, Optional
 
 from sqlalchemy import (
-    Enum,
     JSON,
     Column,
+    Enum,
     Float,
     ForeignKey,
     Integer,
@@ -24,6 +24,7 @@ from sqlalchemy.schema import UniqueConstraint
 
 from main.model.ai_conv_types import MessageNode
 from main.model.types import Event
+from main.utils.db_utils import session_manager
 
 logger = logging.getLogger(__name__)
 
@@ -70,15 +71,15 @@ class GeoAddresses(Base):
     )
 
 
+@session_manager
 def add_geoaddress(
-    engine,
+    session,
     parsed_event_id: int,
     address: str,
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     failure_reason: Optional[str] = None,
 ):
-    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
     try:
         geo_address = GeoAddresses(
             parsed_event_id=parsed_event_id,
@@ -93,6 +94,7 @@ def add_geoaddress(
         session.rollback()
         logger.error("Failed to add geo address %s to database!", address)
         logger.exception(error)
+        raise error
     finally:
         session.close()
 
@@ -122,8 +124,9 @@ class ParsedEventEmbeddingsTable(Base):
     )
 
 
+@session_manager
 def add_event(
-    engine,
+    session,
     event: Optional[Event],
     original_text: str,
     failure_reason: Optional[str],
@@ -132,7 +135,6 @@ def add_event(
     version: str,
     chat_history: Optional[List[str]] = None,
 ) -> int:
-    session = sessionmaker(bind=engine)()  # pylint: disable=invalid-name
     if event:
         event_dict = asdict(event)
         event_dict.pop("name", None)
@@ -164,15 +166,11 @@ def add_event(
         session.rollback()
         logger.error("Failed to add event %s to database!", original_text)
         logger.exception(error)
-
-    finally:
-        session.close()
-    return -1
+        raise error
 
 
-def get_max_id_by_version_and_filename(engine, version, filename):
-    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
-
+@session_manager
+def get_max_id_by_version_and_filename(session, version, filename):
     try:
         # Query the database for the maximum id value with the given version and filename
         max_id = (
@@ -193,16 +191,14 @@ def get_max_id_by_version_and_filename(engine, version, filename):
             filename,
         )
         logger.exception(error)
-    finally:
-        session.close()
+        raise error
 
 
 # Generated via Copilot
+@session_manager
 def get_num_events_by_version_and_filename(
-    engine, version: str, filename: str
+    session, version: str, filename: str
 ) -> int:
-    session = sessionmaker(bind=engine)()  # pylint: disable=invalid-name
-
     try:
         # Query the database for the number of events with the given version and filename
         num_events = (
@@ -221,15 +217,13 @@ def get_num_events_by_version_and_filename(
             filename,
         )
         logger.exception(error)
-    finally:
-        session.close()
-    return 0
+        raise error
 
 
+@session_manager
 def get_column_by_version_and_filename(
-    engine, column: str, version: str, filename: str
+    session, column: str, version: str, filename: str
 ) -> List[str]:
-    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
     try:
         # Query the database for the given column with the given version and filename
         column_values = (
@@ -251,36 +245,27 @@ def get_column_by_version_and_filename(
             filename,
         )
         logger.exception(error)
-    finally:
-        session.close()
-    return []
+        raise error
 
 
+@session_manager
 def get_parsed_events(
-    engine,
+    session,
     filename: str,
     version: str,
     columns: Optional[List[Column]] = None,
 ) -> List[ParsedEventTable]:
-    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
-    try:
-        # Query the database for the given column with the given version and filename
-        query = (
-            session.query(ParsedEventTable)
-            .filter(ParsedEventTable.version == version)
-            .filter(ParsedEventTable.filename == filename)
-        )
-        if columns:
-            query = query.with_entities(*columns)
-        parsed_events = query.all()
-        # add all parsed_events to a dictionary
-        return parsed_events
-
-    except SQLAlchemyError as exc:
-        logger.exception(exc)
-        raise exc
-    finally:
-        session.close()
+    # Query the database for the given column with the given version and filename
+    query = (
+        session.query(ParsedEventTable)
+        .filter(ParsedEventTable.version == version)
+        .filter(ParsedEventTable.filename == filename)
+    )
+    if columns:
+        query = query.with_entities(*columns)
+    parsed_events = query.all()
+    # add all parsed_events to a dictionary
+    return parsed_events
 
 
 # Note to self: What relationship do our document embeddings have with the Moods?
@@ -288,8 +273,8 @@ def get_parsed_events(
 # How can I relate them to a person's input so that I can personalize what someone sees?
 
 
-def insert_parsed_event_embeddings(engine, events: List[Dict[str, str]]):
-    session = sessionmaker(bind=engine)()  # pylint ignore=invalid-name
+@session_manager
+def insert_parsed_event_embeddings(session, events: List[Dict[str, str]]):
     # Query the database for the given column with the given version and filename
     embedding_lst = []
     for event in events:
@@ -300,8 +285,4 @@ def insert_parsed_event_embeddings(engine, events: List[Dict[str, str]]):
             parsed_event_id=int(event["parsed_event_id"]),
         )
         embedding_lst.append(parsed_event_embedding)
-    try:
-        session.add_all(embedding_lst)
-        session.commit()
-    finally:
-        session.close()
+    session.add_all(embedding_lst)
