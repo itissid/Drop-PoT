@@ -170,6 +170,26 @@ HOBOKEN_GIRL_SYSTEM_PROMPT = """
     `
 """
 
+PRIME_EVENT_EXAMPLE = """
+{
+"name": "The Laugh Tour Comedy Club at Dorrian’s Red Hand",
+"description": "The Laugh Tour Comedy Club located inside Dorrian’s Red Hand has four shows this weekend. All shows are hosted by comedian Rich Kiamco and will feature comedians from Nickelodeon, Colbert, Gas Digital, MTV, Showtime, America’s Got Talent, iTunes, Tru TV, and Boston Comedy Festival. Show tickets $25 for all shows plus a 2 item minimum per person (food or drink with 20% gratuity automatically added).",
+"categories": ["Comedy club"], 
+"addresses": ["555 Washington Boulevard, Jersey City"], 
+"is_ongoing": false, "start_date": ["2023-09-01", "2023-09-02"],
+"end_date": ["2023-09-01", "2023-09-02"], 
+"start_time": ["19:30", "21:45", "18:30", "21:00"], 
+"end_time": ["19:30", "21:45", "18:30", "21:00"], 
+"is_paid": true,
+"has_promotion": false, 
+"promotion_details": null, 
+"payment_mode": "ticket", 
+"payment_details": "https://bit.ly/HOB-GIRL-LAUGHTOUR", 
+"links": ["https://bit.ly/HOB-GIRL-LAUGHTOUR", "https://dorrians-jc.com/",
+"https://www.instagram.com/thelaughtour_/"]
+}
+"""
+
 PARSE_EVENT_PROMPT = """
     Process the following event in backticks according to the instructions provided previously.
     ```

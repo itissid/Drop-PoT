@@ -10,8 +10,11 @@ import typer
 from main.lib.ai import AltAI
 from main.model.ai_conv_types import MessageNode, Role
 from main.model.persistence_model import Base as PersistenceBase
-from main.model.persistence_model import (ParsedEventTable, add_geoaddress,
-                                          get_parsed_events)
+from main.model.persistence_model import (
+    ParsedEventTable,
+    add_geoaddress,
+    get_parsed_events,
+)
 from main.model.types import Event
 from main.utils.color_formatter import ColoredFormatter
 from main.utils.db_utils import validate_database
@@ -214,4 +217,5 @@ def coordinates_from_event_addresses(
 if __name__ == "__main__":
     app()
 
-# Note: Make sure your local Nominatim server is running and accessible at http://localhost:8080. Adjust the URL and port as needed.
+# N2S: Make sure your local Nominatim server is running and accessible at
+# http://localhost:8080. Adjust the URL and port as needed.

@@ -1,4 +1,4 @@
 [MESSAGES CONTROL]
 disable=missing-function-docstring,missing-docstring,too-few-public-methods
 [TYPECHECK]
-signature-mutators="main.lib.ai.AltAI._send_with_function"
+signature-mutators="main.lib.ai.AltAI._send_with_function,main.utils.db_utils.session_manager"

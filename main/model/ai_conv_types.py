@@ -35,11 +35,12 @@ class AIFunctionCall(BaseModel):
     Internal Representation of a function call.
     Example:
     {
-        "name": "get_current_weather", 
+        "name": "get_current_weather",
         "arguments":  '{\n  "location": "Glasgow, Scotland",\n  "format": "celsius"\n}'
     }
 
     """
+
     name: Optional[str] = None
     arguments: Optional[Json[Dict[str, Any]]] = None
 
@@ -56,13 +57,13 @@ class UserExplicitFunctionCall(BaseModel):
 class OpenAIFunctionCallProperty(BaseModel):
     type: str
     # Use print(property.dict(exclude_none=True)) to exclude Optional fields.
-    items: Optional['OpenAIFunctionCallProperty'] = None
+    items: Optional["OpenAIFunctionCallProperty"] = None
     enum: Optional[List[str]] = None
     description: Optional[str] = None
 
-    @validator('items', 'enum', pre=True, allow_reuse=True)
+    @validator("items", "enum", pre=True, allow_reuse=True)
     def prevent_none(cls, v):
-        assert v is not None, '`items` and `enum` may not be None'
+        assert v is not None, "`items` and `enum` may not be None"
         return v
 
 
@@ -80,6 +81,7 @@ class OpenAIFunctionCallSpec(BaseModel):
 
 class MessageNode(BaseModel):
     """A generic message node. Contains a hybrid union of fields to support messages for all roles."""
+
     role: Role
     # Time sorted id of the message
     id: UUID1 = Field(default_factory=time_uuid.TimeUUID.with_utcnow)
@@ -93,9 +95,10 @@ class MessageNode(BaseModel):
 
     # To support OpenAI function call API
     # Set for user when they want API to call a function.
-    functions: Optional[List[OpenAIFunctionCallSpec]] = None
-    explicit_fn_call: Optional[Union[UserExplicitFunctionCall,
-                                     UserFunctionCallMode]] = None
+    functions: Optional[List[Dict[str, Any]]] = None
+    explicit_fn_call: Optional[
+        Union[UserExplicitFunctionCall, UserFunctionCallMode]
+    ] = None
     # Set when AI calls a function with the name and arguments.
     ai_function_call: Optional[AIFunctionCall] = None
     # set for role: "function" from user's call to the function. Mainly used for replay or further interrogating.
@@ -111,6 +114,7 @@ class MessageNode(BaseModel):
 class EventNode(BaseModel):
     raw_event_str: str  # Raw event data.
     event_obj: Optional[Event] = None
+
     # Consider adding a field that summarises the interrogation messages and is appended to the
     # system_prompt at runtime.
     # assume that the last message on the stack is from the user.
@@ -141,33 +145,35 @@ class EventNode(BaseModel):
         yield from EventNode.context_to_openai_api_messages(self.history or [])
 
     @staticmethod
-    def context_to_openai_api_messages(context: List[MessageNode]) -> Generator[Dict[str, Any], None, None]:
+    def context_to_openai_api_messages(
+        context: List[MessageNode],
+    ) -> Generator[Dict[str, Any], None, None]:
         """
         Convert to a format to send to OpenAI API. Useful also for replaying.
-        TODO(Sid): It might be also useful to make this class extend TypedDict instead(https://docs.pydantic.dev/latest/usage/types/dicts_mapping/#typeddict) 
+        TODO(Sid): It might be also useful to make this class extend TypedDict instead(https://docs.pydantic.dev/latest/usage/types/dicts_mapping/#typeddict)
         so that we can validate(via pydantic) when we serialize and deserialize chat history(json) from the SQLlite database.
         """
         assert context and len(context) > 0
         if len(context) == 1:
             """
-                *****************
-                Single message user cases.
-                *****************
-                With only one message the transformation is simple.
-                1. If the first message is system message the transformation is 
-                {
-                    "role": "system",
-                    "content": "You are an helpful AI assistant who can help me get the weather.",                    
-                }
-                2. If the first message is a user message with a function call:
-                {
-                    "role": "user",
-                    "content": "What weather is it in Hoboken, NJ?",
-                    "functions": {},
-                    "function_call": {"name": "get_current_weather"} }
-                }
-                3.  It can be an assistant message but that is odd
-                    https://asciinema.org/connect/382648b0-b78a-444b-956d-83bd1e71c9bb
+            *****************
+            Single message user cases.
+            *****************
+            With only one message the transformation is simple.
+            1. If the first message is system message the transformation is
+            {
+                "role": "system",
+                "content": "You are an helpful AI assistant who can help me get the weather.",
+            }
+            2. If the first message is a user message with a function call:
+            {
+                "role": "user",
+                "content": "What weather is it in Hoboken, NJ?",
+                "functions": {},
+                "function_call": {"name": "get_current_weather"} }
+            }
+            3.  It can be an assistant message but that is odd
+                https://asciinema.org/connect/382648b0-b78a-444b-956d-83bd1e71c9bb
             """
             message = context[0]
             if message.role == Role.user:
@@ -176,17 +182,23 @@ class EventNode(BaseModel):
                     "content": message.message_content,
                 }
                 if message.functions:
-                    msg["functions"] = [fn.model_dump(
-                        exclude_none=True) for fn in message.functions]
+                    msg["functions"] = [
+                        fn.model_dump(exclude_none=True)
+                        for fn in message.functions
+                    ]
                 yield msg
             elif context[0].role == Role.assistant:
                 raise ValueError(
-                    "The first message is not allowed to be an assistant message!")
+                    "The first message is not allowed to be an assistant message!"
+                )
             elif context[0].role == Role.system:
-                yield EventNode.fsystem(message.message_content if message.message_content else '')
+                yield EventNode.fsystem(
+                    message.message_content if message.message_content else ""
+                )
             else:
                 raise ValueError(
-                    f"Unexpected role {context[0].role} in message history of length 1")
+                    f"Unexpected role {context[0].role} in message history of length 1"
+                )
             return
 
         """
@@ -247,7 +259,7 @@ class EventNode(BaseModel):
 
             """
         for message_curr, message_next in zip(context[:-1], context[1:]):
-            """ The use cases get a bit complex"""
+            """The use cases get a bit complex"""
             if message_curr.role == Role.system:
                 yield {
                     "role": message_curr.role.name,
@@ -262,7 +274,6 @@ class EventNode(BaseModel):
                     "content": message_curr.message_content,
                 }
             elif message_curr.role == Role.assistant:
-
                 msg: Dict[str, Any] = {
                     "role": Role.assistant.name,
                 }
@@ -271,7 +282,9 @@ class EventNode(BaseModel):
                     msg["content"] = message_curr.message_content
                     msg["function_call"] = {
                         "name": message_curr.ai_function_call.name,
-                        "arguments": json.dumps(message_curr.ai_function_call.arguments),
+                        "arguments": json.dumps(
+                            message_curr.ai_function_call.arguments
+                        ),
                     }
                     yield msg
                     # There is a message_next and we would have stored it correctly it was a function result; just append it here.
@@ -290,7 +303,8 @@ class EventNode(BaseModel):
                     yield msg
             elif message_curr.role == Role.function:
                 logger.info(
-                    "Function role was appeneded in the last iteration already.")
+                    "Function role was appeneded in the last iteration already."
+                )
             else:
                 raise ValueError(f"Unexpected role {message_curr.role}")
 
@@ -301,13 +315,20 @@ class EventNode(BaseModel):
                 "content": context[-1].message_content,
             }
             if context[-1].functions:
-                msg["functions"] = [function.model_dump(
-                    exclude_none=True) for function in context[-1].functions]
-                assert context[
-                    -1].explicit_fn_call is not None, "Call mode must be set to be 'auto', 'none' or {'name': <function_name>}"
-                msg["explicit_fn_call"] = (context[-1].explicit_fn_call.model_dump()
-                                           if isinstance(context[-1].explicit_fn_call, UserExplicitFunctionCall)
-                                           else context[-1].explicit_fn_call.value)
+                msg["functions"] = [
+                    function  # .model_dump( exclude_none=True)
+                    for function in context[-1].functions
+                ]
+                assert (
+                    context[-1].explicit_fn_call is not None
+                ), "Call mode must be set to be 'auto', 'none' or {'name': <function_name>}"
+                msg["explicit_fn_call"] = (
+                    context[-1].explicit_fn_call.model_dump()
+                    if isinstance(
+                        context[-1].explicit_fn_call, UserExplicitFunctionCall
+                    )
+                    else context[-1].explicit_fn_call.value
+                )
             yield msg
         elif context[-1].role == Role.assistant:
             msg = {
@@ -315,11 +336,14 @@ class EventNode(BaseModel):
             }
             if context[-1].ai_function_call:
                 logger.warn(
-                    "Function call request to AI without a function result message following it. The function result message should have been added by driver already.")
+                    "Function call request to AI without a function result message following it. The function result message should have been added by driver already."
+                )
                 msg["content"] = None
                 msg["function_call"] = {
                     "name": context[-1].ai_function_call.name,
-                    "arguments": json.dumps(context[-1].ai_function_call.arguments),
+                    "arguments": json.dumps(
+                        context[-1].ai_function_call.arguments
+                    ),
                 }
                 yield msg
 
@@ -338,12 +362,15 @@ class EventNode(BaseModel):
             }
         elif context[-1].role == Role.function:
             logger.info(
-                "Function role was generated in the last iteration already.")
+                "Function role was generated in the last iteration already."
+            )
 
 
 class InterrogationProtocol:
     @abstractmethod
-    def get_interrogation_message(self, event: EventNode) -> Optional[MessageNode]:
+    def get_interrogation_message(
+        self, event: EventNode
+    ) -> Optional[MessageNode]:
         ...
 
     pass

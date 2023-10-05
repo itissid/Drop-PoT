@@ -9,7 +9,7 @@ from colorama import Fore
 from datasette_faiss import encode
 
 from main.lib.ai import EmbeddingSearch
-from main.model.mood_model import (
+from main.model.mood_model_unsupervised import (
     Mood,
     MoodFlavors,
     generate_submoods_json_accessors,

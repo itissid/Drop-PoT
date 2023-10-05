@@ -27,13 +27,17 @@ from main.model.ai_conv_types import (
     MessageNode,
     Role,
 )
-from main.model.mood_model import Base as MoodBase
+from main.model.mood_model_unsupervised import Base as MoodBase
 from main.model.persistence_model import Base as PersistenceBase
 from main.model.persistence_model import (
     add_event,
     get_num_events_by_version_and_filename,
 )
 from main.model.types import Event, create_event
+from main.prompts.hoboken_girl_prompt import (
+    base_prompt_hoboken_girl,
+    default_parse_event_prompt,
+)
 from main.utils.cli_utils import (
     _optionally_format_colorama,
     ask_user_helper,
@@ -43,10 +47,6 @@ from main.utils.cli_utils import (
 )
 from main.utils.color_formatter import ColoredFormatter
 from main.utils.db_utils import validate_database
-from main.prompts.hoboken_girl_prompt import (
-    base_prompt_hoboken_girl,
-    default_parse_event_prompt,
-)
 from main.utils.scraping import get_documents
 
 app = typer.Typer()
@@ -116,7 +116,9 @@ def setup(
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-mood-embeddings":
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.mood_model_unsupervised import SubmoodBasedEmbeddingsTable
+        from main.model.mood_model_unsupervised import (
+            SubmoodBasedEmbeddingsTable,
+        )
 
         validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
@@ -314,7 +316,7 @@ def extract_serialize_events(
     if not cities and type(cities) != list:
         raise ValueError("Cities are required and must be a list.")
     items = get_num_events_by_version_and_filename(
-        ctx.obj["engine"], version, ingestable_article_file.name
+        ctx, version, ingestable_article_file.name
     )
     # A bit of sanity check.
     if items > 0:
@@ -364,7 +366,7 @@ def extract_serialize_events(
             )
             assert event.history is not None
             add_event(
-                ctx.obj["engine"],
+                ctx,
                 event=None,
                 original_text=event.raw_event_str,
                 replay_history=event.history,
@@ -376,7 +378,7 @@ def extract_serialize_events(
         try:
             assert event.history is not None
             add_event(
-                ctx.obj["engine"],
+                ctx,
                 event=event.event_obj,
                 original_text=event.raw_event_str,
                 replay_history=event.history,
@@ -385,9 +387,8 @@ def extract_serialize_events(
                 version=version,
             )
         except Exception as error:  # pylint: disable=broad-except
-            engine = ctx.obj["engine"]
             id = add_event(  # pylint: disable=invalid-name
-                engine,
+                ctx,
                 event=None,
                 original_text=event.raw_event_str,
                 replay_history=event.history,

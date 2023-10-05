@@ -1,6 +1,7 @@
 from sqlalchemy import MetaData
 
-from main.model.mood_model import Base as MoodBase
+from main.model.mood_model_unsupervised import Base as MoodBaseUnsupervised
+from main.model.mood_model_supervised import Base as MoodBaseSupervised
 from main.model.persistence_model import Base as PersistenceBase
 
 
@@ -15,5 +16,7 @@ def merge_metadata(*original_metadata) -> MetaData:
 
 
 combined_meta_data = merge_metadata(
-    MoodBase.metadata, PersistenceBase.metadata
+    MoodBaseUnsupervised.metadata,
+    PersistenceBase.metadata,
+    MoodBaseSupervised.metadata,
 )
