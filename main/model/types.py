@@ -1,7 +1,8 @@
 import datetime
 import enum
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 from main.utils.extraction_utils import flatten_list
@@ -11,59 +12,58 @@ logger = logging.getLogger(__name__)
 
 class PaymentMode(enum.Enum):
     # Ticketed events like art shows, concerts, networking events and courses.
-    ticket = 1
-    paid_membership = 2  # Wellness, Subscription packages etc.
+    ticket = 'ticket'
+    paid_membership = 'paid_membership'  # Wellness, Subscription packages etc.
     appointment = (
-        3  # Appointments like Botox, Dental Cleaning, Cosmetic Surgery etc.
+        'appointment'  # Appointments like Botox, Dental Cleaning, Cosmetic Surgery etc.
     )
-    in_premises = 4  # In Premises like restaurants, bars, clubs, gyms etc.
+    in_premises = 'in_premises'  # In Premises like restaurants, bars, clubs, gyms etc.
 
 
-@dataclass
-class Event:
+class Event(BaseModel):
     name: str
     # More information summarizing the event, services offered, te
     description: str
     categories: list
     # TODO: Type might reflect ontology of events when we have it.
-    addresses: Optional[List[str]] = field(
+    addresses: Optional[List[str]] = Field(
         default=None,
     )
     # Like a museum, restaurant advertizing its services or new services.
-    is_ongoing: bool = field(
+    is_ongoing: bool = Field(
         default=False,
     )
     # The event's start date(which can be after the date time of the document) If the event is ongoing then start and end dates are moot.
-    start_date: Optional[List[datetime.date]] = field(
+    start_date: Optional[List[datetime.date]] = Field(
         default=None,
     )
-    end_date: Optional[List[datetime.date]] = field(
+    end_date: Optional[List[datetime.date]] = Field(
         default=None,
     )
-    start_time: Optional[List[datetime.time]] = field(
+    start_time: Optional[List[datetime.time]] = Field(
         default=None,
     )
-    end_time: Optional[List[datetime.time]] = field(
+    end_time: Optional[List[datetime.time]] = Field(
         default=None,
     )
     # means no payment, event is free and payment_mode will be None
-    is_paid: bool = field(
+    is_paid: bool = Field(
         default=False,
     )
-    has_promotion: bool = field(
+    has_promotion: bool = Field(
         default=False,
     )
-    promotion_details: Optional[str] = field(
+    promotion_details: Optional[str] = Field(
         default=None,
     )
-    payment_mode: Optional[PaymentMode] = field(
+    payment_mode: Optional[PaymentMode] = Field(
         default=None,
     )
 
-    payment_details: Optional[str] = field(
+    payment_details: Optional[str] = Field(
         default=None,
     )
-    links: Optional[List[str]] = field(default=None)
+    links: Optional[List[str]] = Field(default=None)
 
     def __str__(self):
         return ', '.join([k+'='+str(v) for k, v in asdict(self).items()])
@@ -91,9 +91,7 @@ class Event:
         if self.links:
             self.links = flatten_list(self.links)
 
-# Maybe there is a better way to do this
-
-
+# Maybe there is a better way to do create these objects
 def create_event(
     name: str,
     description: str,

@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class Role(enum.Enum):
-    system = 'system'
-    assistant = 'assistant'
-    user = 'user'
-    function = 'function'
+    system = "system"
+    assistant = "assistant"
+    user = "user"
+    function = "function"
 
     @classmethod
     def from_string(cls, value):
