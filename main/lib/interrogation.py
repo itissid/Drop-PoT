@@ -48,7 +48,7 @@ class InteractiveInterrogationProtocol(InterrogationProtocol):
             print("\n".join(
                 [
                     f"{k}: {str(v)} ({type(v)})"
-                    for k, v in formatted_dict(asdict(event.event_obj)).items()
+                    for k, v in formatted_dict(dict(event.event_obj)).items()
                 ]
             ))
             should_amend = self._ask_user_should_ai_amend()

@@ -470,12 +470,13 @@ def call_ai_generated_function_for_event(
             "\n".join(
                 [
                     f"{k}: {str(v)} ({type(v)})"
-                    for k, v in formatted_dict(asdict(event_obj)).items()
+                    for k, v in formatted_dict((event_obj.model_dump())).items()
                 ]
             )
         )
         # The object returned by the function must have a reasonable __str__ to be useful.
-        return event_obj, f"{fn_name}({str(event_obj)})"
+        kv = ', '.join(f'{k}={repr(v)}' for k, v in dict(event_obj).items())
+        return event_obj, f"{fn_name}({kv})"
     else:
         logger.warning(
             "*** No function name found or not in Allowed functions list: %s! for event",

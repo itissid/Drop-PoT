@@ -136,7 +136,7 @@ def add_event(
     chat_history: Optional[List[str]] = None,
 ) -> int:
     if event:
-        event_dict = asdict(event)
+        event_dict = dict(event)
         event_dict.pop("name", None)
         event_dict.pop("description", None)
     else:

@@ -206,52 +206,41 @@ def driver_wrapper(
                 assert isinstance(ai_message, MessageNode)
                 logger.debug("PostSend")
                 event_node.history.append(ai_message)
-                if ai_message.ai_function_call:
-                    assert (
-                        function_callable_for_ai_function_call is not None
-                    ), "AI wants to call a function but no user function to call one was provided."
-                    (
-                        fn_call_result,
-                        fn_call_result_str,
-                    ) = function_callable_for_ai_function_call(ai_message)
-                    logger.debug("AI Function called")
-                    event_node.history.append(
-                        MessageNode(
-                            role=Role.function,
-                            ai_function_call_result=fn_call_result_str,
-                            ai_function_call_result_name=ai_message.ai_function_call.name,
-                        )
-                    )
-                    event_node.event_obj = fn_call_result
-                else:
-                    logger.debug("No AI Function call")
+                _process_ai_function_call_helper(
+                    ai_message,
+                    event_node,
+                    function_callable_for_ai_function_call,
+                )
                 logger.debug(">>>")
                 if ai_message.message_content:
                     logger.debug(
                         f"Got message_content from AI:\n {ai_message.message_content}"
                     )
-                # Human interaction with AI if set is managed here.
+                # hook to interact with anything
+                # Human interaction with AI for debugging, AI Agents what have you.
                 if interrogation_callback is not None:
                     interrogation_message = (
                         interrogation_callback.get_interrogation_message(
                             event_node
                         )
                     )
-                    # User is now conversing with the AI, trying to get it to fix its responses.
                     while interrogation_message is not None:
                         assert interrogation_message.role == Role.user
                         ai_message = driver_gen.send(
                             interrogation_message
                         )  # type: ignore
-                        # TODO: make interrogation events handle function calls
-                        # once that is done we can
                         assert (
                             isinstance(ai_message, MessageNode)
                             and ai_message.role == Role.assistant
                         )
                         event_node.history.append(interrogation_message)
 
-                        event_node.history.append(ai_message)
+                        _process_ai_function_call_helper(
+                            ai_message,
+                            event_node,
+                            function_callable_for_ai_function_call,
+                        )
+                        # event_node.history.append(ai_message)
                         interrogation_message = (
                             interrogation_callback.get_interrogation_message(
                                 event_node
@@ -266,6 +255,34 @@ def driver_wrapper(
             ), f"Expected StopIteration('Done') instead got: {excinfo}"
             logger.debug(excinfo)
             break
+
+
+def _process_ai_function_call_helper(
+    ai_message: MessageNode,
+    event_node: EventNode,
+    function_callable_for_ai_function_call: Optional[
+        Callable[[MessageNode], Tuple[Optional[Any], Optional[str]]]
+    ] = None,
+):
+    if ai_message.ai_function_call:
+        assert (
+            function_callable_for_ai_function_call is not None
+        ), "AI wants to call a function but no user function to call one was provided."
+        (
+            fn_call_result,
+            fn_call_result_str,
+        ) = function_callable_for_ai_function_call(ai_message)
+        logger.debug("AI Function called")
+        event_node.history.append(
+            MessageNode(
+                role=Role.function,
+                ai_function_call_result=fn_call_result_str,
+                ai_function_call_result_name=ai_message.ai_function_call.name,
+            )
+        )
+        event_node.event_obj = fn_call_result
+    else:
+        logger.debug("No AI Function call")
 
 
 class AltAI:

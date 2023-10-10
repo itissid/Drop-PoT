@@ -76,7 +76,7 @@ class OpenAIFunctionCallParameters(BaseModel):
 class OpenAIFunctionCallSpec(BaseModel):
     name: str
     description: str
-    parameters: OpenAIFunctionCallParameters
+    parameters: Dict[str, Any]
 
 
 class MessageNode(BaseModel):
@@ -95,7 +95,7 @@ class MessageNode(BaseModel):
 
     # To support OpenAI function call API
     # Set for user when they want API to call a function.
-    functions: Optional[List[Dict[str, Any]]] = None
+    functions: Optional[List[OpenAIFunctionCallSpec]] = None
     explicit_fn_call: Optional[
         Union[UserExplicitFunctionCall, UserFunctionCallMode]
     ] = None
@@ -316,7 +316,7 @@ class EventNode(BaseModel):
             }
             if context[-1].functions:
                 msg["functions"] = [
-                    function  # .model_dump( exclude_none=True)
+                    function.model_dump(exclude_none=True)
                     for function in context[-1].functions
                 ]
                 assert (
