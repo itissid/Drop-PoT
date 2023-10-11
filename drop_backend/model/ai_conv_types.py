@@ -7,7 +7,7 @@ from typing import Any, Dict, Generator, List, Optional, Union
 import time_uuid
 from pydantic import UUID1, BaseModel, Field, Json, validator
 
-from main.model.types import Event
+from .types import Event
 
 logger = logging.getLogger(__name__)
 

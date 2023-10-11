@@ -7,7 +7,7 @@ import json
 import logging
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import List, Any
+from typing import Any, List
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
 from jsonpath_ng import parse
@@ -24,7 +24,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from main.model.mood_seed import GEN_Z, GEN_Z_HOBOKEN, GEN_Z_NYC, MILLENIALS
+from .mood_seed import GEN_Z, GEN_Z_HOBOKEN, GEN_Z_NYC, MILLENIALS
 
 Base = declarative_base()
 logger = logging.getLogger(__name__)

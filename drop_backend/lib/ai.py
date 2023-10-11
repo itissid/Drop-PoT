@@ -44,7 +44,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
-from main.model.ai_conv_types import (
+from ..model.ai_conv_types import (
     AIFunctionCall,
     EventNode,
     InterrogationProtocol,

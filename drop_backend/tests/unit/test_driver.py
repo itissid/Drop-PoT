@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 
 import time_uuid
 
-from main.lib.ai import AIDriver, driver_wrapper
-from main.model.ai_conv_types import (
+from lib.ai import AIDriver, driver_wrapper
+from model.ai_conv_types import (
     EventNode,
     InterrogationProtocol,
     MessageNode,

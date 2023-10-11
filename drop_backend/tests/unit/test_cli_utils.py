@@ -1,7 +1,7 @@
 from unittest.mock import patch
 import pytest
 import typer
-from main.utils.cli_utils import validate_url_file_suggestions
+from utils.cli_utils import validate_url_file_suggestions
 
 def test_empty_data():
     with pytest.raises(ValueError, match="Bad data: missing URL or file names."):

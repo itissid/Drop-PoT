@@ -7,17 +7,17 @@ import click
 import requests
 import typer
 
-from main.lib.ai import AltAI
-from main.model.ai_conv_types import MessageNode, Role
-from main.model.persistence_model import Base as PersistenceBase
-from main.model.persistence_model import (
+from ..lib.ai import AltAI
+from ..model.ai_conv_types import MessageNode, Role
+from ..model.persistence_model import Base as PersistenceBase
+from ..model.persistence_model import (
     ParsedEventTable,
     add_geoaddress,
     get_parsed_events,
 )
-from main.model.types import Event
-from main.utils.color_formatter import ColoredFormatter
-from main.utils.db_utils import validate_database
+from ..model.types import Event
+from ..utils.color_formatter import ColoredFormatter
+from ..utils.db_utils import validate_database
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
 

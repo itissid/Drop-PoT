@@ -4,11 +4,10 @@ import logging
 import click
 import typer
 
-from main.model.merge_base import combined_meta_data
-from main.utils.color_formatter import ColoredFormatter
-from main.utils.db_utils import validate_database
-
-from ..lib.config_generator import gen_schema
+from ..lib.config_generator import gen_schema as gen_schema_impl
+from ..model.merge_base import combined_meta_data
+from ..utils.color_formatter import ColoredFormatter
+from ..utils.db_utils import validate_database
 
 # from . import mood_commands
 
@@ -51,13 +50,31 @@ def setup(
 
 def index_event_moods(ctx: typer.Context, filename: str, version: str):
     pass
+
+
 #     mood_commands._generate_and_index_event_moods(ctx, filename, version)
+from pathlib import Path
+
+
+def gen_model_code_bindings(
+    type_name: str,
+    schema_directory_prefix: str = "main/types/schema",
+    type_module_prefix: str = "main.types",
+):
+    schema_directory = Path(schema_directory_prefix)
+    if (
+        not schema_directory.exists()
+        or not (schema_directory / "__init__.py").exists()
+    ):
+        typer.echo(f"Error: {schema_directory_prefix} is not a valid package!")
+        raise typer.Exit(code=1)
+    gen_schema_impl(type_name, schema_directory_prefix, type_module_prefix)
 
 
 # app.add_typer(data_ingestion_commands_app)
 app.add_typer(config_generator_commands)
 data_ingestion_commands_app.command()(index_event_moods)
-config_generator_commands.command()(gen_schema)
+config_generator_commands.command()(gen_model_code_bindings)
 
 if __name__ == "__main__":
     app()

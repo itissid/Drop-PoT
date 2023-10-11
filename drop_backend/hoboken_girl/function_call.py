@@ -1,9 +1,9 @@
 import typing
 from typing import List, Tuple
 
-from main.model.ai_conv_types import OpenAIFunctionCallParameters
-from main.model.ai_conv_types import OpenAIFunctionCallProperty as p
-from main.model.ai_conv_types import (
+from ..model.ai_conv_types import OpenAIFunctionCallParameters
+from ..model.ai_conv_types import OpenAIFunctionCallProperty as p
+from ..model.ai_conv_types import (
     OpenAIFunctionCallSpec,
     UserExplicitFunctionCall,
 )
@@ -183,23 +183,23 @@ def hoboken_girl_event_function_param() -> (
     import json
 
     return (
-        json.loads(
-            """[
-    {
-
+        [
+            OpenAIFunctionCallSpec(
+                **json.loads(
+                    """{
         "name": "create_event",
         "description": "Parse an event's fields from the provided text",
         "parameters": {
             "$defs": {
                 "PaymentMode": {
                 "enum": [
-                    1,
-                    2,
-                    3,
-                    4
+                    "ticket",
+                    "paid_membership",
+                    "appointment",
+                    "in_premises"
                 ],
                 "title": "PaymentMode",
-                "type": "integer"
+                "type": "string"
                 }
             },
             "properties": {
@@ -212,9 +212,9 @@ def hoboken_girl_event_function_param() -> (
                 "type": "string"
                 },
                 "categories": {
-                    "items": {},
-                    "title": "Categories",
-                    "type": "array"
+                "items": {},
+                "title": "Categories",
+                "type": "array"
                 },
                 "addresses": {
                     "anyOf": [
@@ -237,19 +237,19 @@ def hoboken_girl_event_function_param() -> (
                     "type": "boolean"
                 },
                 "start_date": {
-                "anyOf": [
-                    {
-                    "items": {
-                        "format": "date",
-                        "type": "string"
-                    },
-                    "type": "array"
-                    },
-                    {
-                    "type": "null"
-                    }
-                ],
-                "default": null,
+                    "anyOf": [
+                        {
+                        "items": {
+                            "format": "date",
+                            "type": "string"
+                        },
+                        "type": "array"
+                        },
+                        {
+                        "type": "null"
+                        }
+                    ],
+                    "default": null,
                 "title": "Start Date"
                 },
                 "end_date": {
@@ -285,8 +285,8 @@ def hoboken_girl_event_function_param() -> (
                 "title": "Start Time"
                 },
                 "end_time": {
-                    "anyOf": [
-                        {
+                "anyOf": [
+                    {
                         "items": {
                             "format": "time",
                             "type": "string"
@@ -368,10 +368,13 @@ def hoboken_girl_event_function_param() -> (
             ],
             "title": "Event",
             "type": "object"
-        }
-    }]
+            }
+
+    }
     """
-        ),
+                )
+            )
+        ],
         UserExplicitFunctionCall(name="create_event"),
     )
     # return [{

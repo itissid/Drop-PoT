@@ -11,43 +11,43 @@ import typer
 from colorama import Fore
 from pydantic import ValidationError
 
-from main.commands.embedding_commands import demo_retrieval  # index_events,
-from main.commands.embedding_commands import (
+from .commands.embedding_commands import demo_retrieval  # index_events,
+from .commands.embedding_commands import (
     index_event_embeddings,
     index_mood_embeddings,
     index_moods,
 )
-from main.hoboken_girl.function_call import hoboken_girl_event_function_param
-from main.lib.ai import AIDriver, AltAI, driver_wrapper
-from main.lib.db import DB
-from main.lib.interrogation import InteractiveInterrogationProtocol
-from main.model.ai_conv_types import (
+from .hoboken_girl.function_call import hoboken_girl_event_function_param
+from .lib.ai import AIDriver, AltAI, driver_wrapper
+from .lib.db import DB
+from .lib.interrogation import InteractiveInterrogationProtocol
+from .model.ai_conv_types import (
     EventNode,
     InterrogationProtocol,
     MessageNode,
     Role,
 )
-from main.model.mood_model_unsupervised import Base as MoodBase
-from main.model.persistence_model import Base as PersistenceBase
-from main.model.persistence_model import (
+from .model.mood_model_unsupervised import Base as MoodBase
+from .model.persistence_model import Base as PersistenceBase
+from .model.persistence_model import (
     add_event,
     get_num_events_by_version_and_filename,
 )
-from main.model.types import Event, create_event
-from main.prompts.hoboken_girl_prompt import (
+from .model.types import Event, create_event
+from .prompts.hoboken_girl_prompt import (
     base_prompt_hoboken_girl,
     default_parse_event_prompt,
 )
-from main.utils.cli_utils import (
+from .utils.cli_utils import (
     _optionally_format_colorama,
     ask_user_helper,
     choose_file,
     formatted_dict,
     would_you_like_to_continue,
 )
-from main.utils.color_formatter import ColoredFormatter
-from main.utils.db_utils import validate_database
-from main.utils.scraping import get_documents
+from .utils.color_formatter import ColoredFormatter
+from .utils.db_utils import validate_database
+from .utils.scraping import get_documents
 
 app = typer.Typer()
 
@@ -475,7 +475,7 @@ def call_ai_generated_function_for_event(
             )
         )
         # The object returned by the function must have a reasonable __str__ to be useful.
-        kv = ', '.join(f'{k}={repr(v)}' for k, v in dict(event_obj).items())
+        kv = ", ".join(f"{k}={repr(v)}" for k, v in dict(event_obj).items())
         return event_obj, f"{fn_name}({kv})"
     else:
         logger.warning(

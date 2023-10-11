@@ -19,10 +19,11 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.poetry]
-name = "drop-backend"
+name = "drop"
 version = "0.1.0"
-description = "A brief description of your package"
-authors = ["Your Name <itissid@gmail.com>"]
+description = "Command line tools for building drop"
+authors = ["Sid <itissid@gmail.com>"]
+packages = [{include = "drop"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"

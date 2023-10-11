@@ -8,8 +8,8 @@ import typer
 from colorama import Fore
 from datasette_faiss import encode
 
-from main.lib.ai import EmbeddingSearch
-from main.model.mood_model_unsupervised import (
+from ..lib.ai import EmbeddingSearch
+from ..model.mood_model_unsupervised import (
     Mood,
     MoodFlavors,
     generate_submoods_json_accessors,
@@ -19,11 +19,11 @@ from main.model.mood_model_unsupervised import (
     insert_into_embeddings_table,
     insert_into_mood_json_table,
 )
-from main.model.persistence_model import (
+from ..model.persistence_model import (
     get_parsed_events,
     insert_parsed_event_embeddings,
 )
-from main.utils.cli_utils import _optionally_format_colorama, _pp
+from ..utils.cli_utils import _optionally_format_colorama, _pp
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ def index_event_embeddings(
     ),
 ):
     """
-    Retrieve the embeddings and the 
+    Retrieve the embeddings and the
     """
     engine = ctx.obj["engine"]
     if (

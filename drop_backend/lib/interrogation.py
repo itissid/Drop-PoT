@@ -5,9 +5,9 @@ from typing import Optional
 import typer
 from colorama import Fore
 
-from main.model.ai_conv_types import (EventNode, InterrogationProtocol,
+from ..model.ai_conv_types import (EventNode, InterrogationProtocol,
                                       MessageNode, Role)
-from main.utils.cli_utils import (_optionally_format_colorama, formatted_dict,
+from ..utils.cli_utils import (_optionally_format_colorama, formatted_dict,
                                   get_user_option)
 
 logger = logging.getLogger(__name__)

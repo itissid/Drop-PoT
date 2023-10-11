@@ -2,22 +2,23 @@ import datetime
 import enum
 import logging
 from dataclasses import asdict
-from pydantic import BaseModel, Field
 from typing import List, Optional
 
-from main.utils.extraction_utils import flatten_list
+from pydantic import BaseModel, Field, ValidationError
+
+from ..utils.extraction_utils import flatten_list
 
 logger = logging.getLogger(__name__)
 
 
 class PaymentMode(enum.Enum):
     # Ticketed events like art shows, concerts, networking events and courses.
-    ticket = 'ticket'
-    paid_membership = 'paid_membership'  # Wellness, Subscription packages etc.
-    appointment = (
-        'appointment'  # Appointments like Botox, Dental Cleaning, Cosmetic Surgery etc.
+    ticket = "ticket"
+    paid_membership = "paid_membership"  # Wellness, Subscription packages etc.
+    appointment = "appointment"  # Appointments like Botox, Dental Cleaning, Cosmetic Surgery etc.
+    in_premises = (
+        "in_premises"  # In Premises like restaurants, bars, clubs, gyms etc.
     )
-    in_premises = 'in_premises'  # In Premises like restaurants, bars, clubs, gyms etc.
 
 
 class Event(BaseModel):
@@ -66,7 +67,7 @@ class Event(BaseModel):
     links: Optional[List[str]] = Field(default=None)
 
     def __str__(self):
-        return ', '.join([k+'='+str(v) for k, v in asdict(self).items()])
+        return ", ".join([k + "=" + str(v) for k, v in asdict(self).items()])
 
     def __post_init__(self):
         if not self.is_ongoing and self.start_date is None:
@@ -91,6 +92,7 @@ class Event(BaseModel):
         if self.links:
             self.links = flatten_list(self.links)
 
+
 # Maybe there is a better way to do create these objects
 def create_event(
     name: str,
@@ -108,7 +110,6 @@ def create_event(
     payment_mode: Optional[PaymentMode] = None,
     payment_details: Optional[str] = None,
     links: Optional[List[str]] = None,
-
 ) -> Event:
     # Write a function that accepts an event  string and for each field in the Event class fills the fields with appropriate values extracted
     # from the text and returns the Event object.
@@ -118,23 +119,30 @@ def create_event(
     #   At the end use the click library to ask the user if the fields are correct and if the user determines some fields need to be corrected then the user is asked to manually input the field.
     #   All interactions for each event are logged in a json array along with corrective action taken by the user.
     #   The json array is then saved to a file.
-    return Event(
-        name=name,
-        description=description,
-        categories=categories,
-        addresses=addresses,
-        is_ongoing=is_ongoing,
-        start_date=start_date,
-        end_date=end_date,
-        start_time=start_time,
-        end_time=end_time,
-        is_paid=is_paid,
-        has_promotion=has_promotion,
-        promotion_details=promotion_details,
-        payment_mode=payment_mode,
-        payment_details=payment_details,
-        links=links,
-    )
+    try:
+        return Event(
+            name=name,
+            description=description,
+            categories=categories,
+            addresses=addresses,
+            is_ongoing=is_ongoing,
+            start_date=start_date,
+            end_date=end_date,
+            start_time=start_time,
+            end_time=end_time,
+            is_paid=is_paid,
+            has_promotion=has_promotion,
+            promotion_details=promotion_details,
+            payment_mode=payment_mode,
+            payment_details=payment_details,
+            links=links,
+        )
+    except ValidationError as exc:
+        # This should be a fatal error
+        import ipdb
+
+        ipdb.set_trace()
+        raise exc
 
 
 def sort_alphabet_list_reverse(lst: List[str]) -> List[str]:

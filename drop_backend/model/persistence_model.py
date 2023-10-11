@@ -22,9 +22,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.schema import UniqueConstraint
 
-from main.model.ai_conv_types import MessageNode
-from main.model.types import Event
-from main.utils.db_utils import session_manager
+from ..utils.db_utils import session_manager
+from .ai_conv_types import MessageNode
+from .types import Event
 
 logger = logging.getLogger(__name__)
 
