@@ -2,12 +2,10 @@ import enum
 import json
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, Generator, Generic, List, Optional, TypeVar, Union
 
 import time_uuid
 from pydantic import UUID1, BaseModel, Field, Json, validator
-
-from .types import Event
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +109,12 @@ class MessageNode(BaseModel):
     template_vars: Optional[Dict[str, str]] = {}
 
 
-class EventNode(BaseModel):
+T = TypeVar("T")
+
+
+class EventNode(BaseModel, Generic[T]):
     raw_event_str: str  # Raw event data.
-    event_obj: Optional[Event] = None
+    event_obj: Optional[T] = None
 
     # Consider adding a field that summarises the interrogation messages and is appended to the
     # system_prompt at runtime.
@@ -216,8 +217,8 @@ class EventNode(BaseModel):
                 message_node.functions,
             )
             
-            2. If user message function call is not the last message it will be followed by an assistant message with 
-                a function call, In this case we need to send to AI(this is the replay scenario):
+            2. If user message function call is not the last message it will be followed by an assistant message (possibly with 
+                a function call), In this case we need to send to AI in the replay scenario:
 
             {
                 'role: 'user',
@@ -259,7 +260,7 @@ class EventNode(BaseModel):
 
             """
         for message_curr, message_next in zip(context[:-1], context[1:]):
-            """The use cases get a bit complex"""
+            """The use cases get a bit complex but the algo is described above."""
             if message_curr.role == Role.system:
                 yield {
                     "role": message_curr.role.name,
@@ -287,7 +288,7 @@ class EventNode(BaseModel):
                         ),
                     }
                     yield msg
-                    # There is a message_next and we would have stored it correctly it was a function result; just append it here.
+                    # There is a message_next and if we would have stored it correctly, it was a function result; just append it here.
                     if message_next.role == Role.function:
                         yield {
                             "role": Role.function.name,
@@ -295,20 +296,27 @@ class EventNode(BaseModel):
                             "content": message_next.ai_function_call_result,
                         }
                     else:
-                        logger.warn(
-                            f"Expected a function result message but did not find one in {message_next}"
+                        # In case of a replay this could be handled and a function role could be appended to the message sequence by calling the function again.
+                        msg = (
+                            f"Function call request to AI without a function result. Insert a message after this one```{message_curr.model_dump_json(indent=2)}```"
+                            + "\n"
+                            + "with role function as a result of the call and then call me again."
+                        )
+                        logger.error(msg)
+                        raise ValueError(
+                            f"{msg}. This message is: {message_next.model_dump_json(indent=2)}"
                         )
                 else:
                     msg["content"] = message_curr.message_content
                     yield msg
             elif message_curr.role == Role.function:
                 logger.info(
-                    "Function role was appeneded in the last iteration already."
+                    "Function role and message was appeneded in the last iteration already. Ignoring"
                 )
             else:
                 raise ValueError(f"Unexpected role {message_curr.role}")
 
-        # Process the last message.
+        # Process the last message that remains.
         if context[-1].role == Role.user:
             msg = {
                 "role": context[-1].role.name,
@@ -331,28 +339,14 @@ class EventNode(BaseModel):
                 )
             yield msg
         elif context[-1].role == Role.assistant:
-            msg = {
-                "role": context[-1].role.name,
-            }
-            if context[-1].ai_function_call:
-                logger.warn(
-                    "Function call request to AI without a function result message following it. The function result message should have been added by driver already."
-                )
-                msg["content"] = None
-                msg["function_call"] = {
-                    "name": context[-1].ai_function_call.name,
-                    "arguments": json.dumps(
-                        context[-1].ai_function_call.arguments
-                    ),
-                }
-                yield msg
-
-                yield {
-                    "role": Role.function.name,
-                    "name": context[-1].ai_function_call_result_name,
-                    "content": context[-1].ai_function_call_result,
-                }
+            if context[-1].ai_function_call is not None:
+                msg = "Function call request to AI without a function result. Add a function role with result of the call and then call me again."
+                logger.error(msg)
+                raise ValueError(msg)
             else:
+                msg = {
+                    "role": context[-1].role.name,
+                }
                 msg["content"] = context[-1].message_content
                 yield msg
         elif context[-1].role == Role.system:
