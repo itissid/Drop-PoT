@@ -17,7 +17,6 @@ from .commands.embedding_commands import (
     index_mood_embeddings,
     index_moods,
 )
-from .hoboken_girl.function_call import hoboken_girl_event_function_param
 from .lib.ai import AIDriver, AltAI, driver_wrapper
 from .lib.db import DB
 from .lib.interrogation import InteractiveInterrogationProtocol

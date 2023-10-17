@@ -2,8 +2,7 @@ import enum
 import json
 import logging
 from abc import abstractmethod
-from dataclasses import dataclass
-from typing import Any, Dict, Generator, Generic, List, Optional, TypeVar, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import time_uuid
 from pydantic import UUID1, BaseModel, Field, Json, validator

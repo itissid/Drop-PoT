@@ -76,6 +76,8 @@ from types import ModuleType
 
 from ..types.base import CreatorBase
 
+from ..types.base import CreatorBase
+
 # 1 lets use JSONSchema to generate the scheam from above
 
 # define the name description, categories, is_ongoing(boolean), is_paid(boolean), has_promotion(boolean) as required.
@@ -122,7 +124,6 @@ from drop_backend.model.ai_conv_types import (
 
 def {type_module_name}_function_call_param() -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
     json_schema_{type_module_name} = {schema_function_name}()
-    print('.')
     params = {{"parameters": json.loads(json_schema_{type_module_name})}}
     return (
         [
