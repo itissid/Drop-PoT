@@ -3,12 +3,14 @@ import enum
 import logging
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..utils.extraction_utils import flatten_list
 
 logger = logging.getLogger(__name__)
 
+from typing import Annotated
+from .base import CreatorBase
 
 class PaymentMode(enum.Enum):
     # Ticketed events like art shows, concerts, networking events and courses.
@@ -20,7 +22,9 @@ class PaymentMode(enum.Enum):
     )
 
 
-class CityEvent(BaseModel):
+class CityEvent(BaseModel, CreatorBase):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     # More information summarizing the event, services offered, te
     description: str
@@ -65,8 +69,14 @@ class CityEvent(BaseModel):
     )
     links: Optional[List[str]] = Field(default=None)
 
+    @classmethod
+    def create(**kwargs):
+        return CityEvent(**kwargs)
+
     def __str__(self):
-        return ", ".join([k + "=" + str(v) for k, v in asdict(self).items()])
+        return ", ".join(
+            [k + "=" + str(v) for k, v in self.model_dump().items()]
+        )
 
     def __post_init__(self):
         if not self.is_ongoing and self.start_date is None:

@@ -4,7 +4,9 @@ import logging
 import click
 import typer
 
+from ..lib.config_generator import check_should_update_schema
 from ..lib.config_generator import gen_schema as gen_schema_impl
+from ..lib.config_generator import generate_function_call_param_function
 from ..model.merge_base import combined_meta_data
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
@@ -54,12 +56,14 @@ def index_event_moods(ctx: typer.Context, filename: str, version: str):
 
 #     mood_commands._generate_and_index_event_moods(ctx, filename, version)
 from pathlib import Path
-
+from ..lib.event_node_type_generator import generate_event_node_extension
 
 def gen_model_code_bindings(
     type_name: str,
-    schema_directory_prefix: str = "main/types/schema",
-    type_module_prefix: str = "main.types",
+    schema_directory_prefix: str = "drop_backend/types/schema",
+    type_module_prefix: str = "drop_backend.types",
+    # where to put the EventNode extensions.
+    model_directory_prefix: str = "drop_backend/model/generated",
 ):
     schema_directory = Path(schema_directory_prefix)
     if (
@@ -68,7 +72,29 @@ def gen_model_code_bindings(
     ):
         typer.echo(f"Error: {schema_directory_prefix} is not a valid package!")
         raise typer.Exit(code=1)
-    gen_schema_impl(type_name, schema_directory_prefix, type_module_prefix)
+    # 0. Check if the generated schema already exists if it does ask user if they want to really replace it?
+    update_schema = check_should_update_schema(
+        type_name, schema_directory_prefix, type_module_prefix
+    )
+    # 1. generate the schema
+    if not update_schema:
+        typer.echo("Not updating/generating schema")
+        return
+    _, schema_module_prefix = gen_schema_impl(
+        type_name, schema_directory_prefix, type_module_prefix
+    )
+
+    # 2. generate the function that uses schema
+    schema_module = generate_function_call_param_function(
+        type_name, schema_module_prefix
+    )
+    typer.echo(f"schema module is in path: {schema_module.__name__}")
+
+    # 3. Generate the event module
+    model_module, _ = generate_event_node_extension(type_name, model_directory_prefix)
+    typer.echo(f"model module is in path: {model_module.__name__}")
+
+    # 4. Generate the factories.
 
 
 # app.add_typer(data_ingestion_commands_app)

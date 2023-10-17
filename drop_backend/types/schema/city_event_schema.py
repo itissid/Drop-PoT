@@ -1,7 +1,7 @@
+from drop_backend.lib.config_generator import validate_schema
 
-from main.lib.config_generator import validate_schema
 
-@validate_schema
+@validate_schema("CityEvent", "drop_backend.types")
 def city_event_json_schema():
     return """{
   "$defs": {
@@ -183,4 +183,27 @@ def city_event_json_schema():
   "title": "CityEvent",
   "type": "object"
 }"""
-    
+
+
+import json
+
+from drop_backend.model.ai_conv_types import (
+    OpenAIFunctionCallSpec,
+    UserExplicitFunctionCall,
+)
+
+
+def city_event_function_call_param():
+    json_schema_city_event = city_event_json_schema()
+    print(".")
+    params = {"parameters": json.loads(json_schema_city_event)}
+    return (
+        [
+            OpenAIFunctionCallSpec(
+                name="create_city_event",
+                description="Parse the data into a CityEvent object",
+                **params,
+            )
+        ],
+        UserExplicitFunctionCall(name="create_city_event"),
+    )

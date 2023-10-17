@@ -53,7 +53,7 @@ Thus (U_j -> A_j+i)+ is a closure allowing us to process events in that sequence
 import json
 import unittest
 
-from model.ai_conv_types import (
+from drop_backend.model.ai_conv_types import (
     AIFunctionCall,
     EventNode,
     MessageNode,

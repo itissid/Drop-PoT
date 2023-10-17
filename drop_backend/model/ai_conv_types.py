@@ -2,6 +2,7 @@ import enum
 import json
 import logging
 from abc import abstractmethod
+from dataclasses import dataclass
 from typing import Any, Dict, Generator, Generic, List, Optional, TypeVar, Union
 
 import time_uuid
@@ -52,25 +53,6 @@ class UserExplicitFunctionCall(BaseModel):
     name: str
 
 
-class OpenAIFunctionCallProperty(BaseModel):
-    type: str
-    # Use print(property.dict(exclude_none=True)) to exclude Optional fields.
-    items: Optional["OpenAIFunctionCallProperty"] = None
-    enum: Optional[List[str]] = None
-    description: Optional[str] = None
-
-    @validator("items", "enum", pre=True, allow_reuse=True)
-    def prevent_none(cls, v):
-        assert v is not None, "`items` and `enum` may not be None"
-        return v
-
-
-class OpenAIFunctionCallParameters(BaseModel):
-    type: str
-    properties: Dict[str, OpenAIFunctionCallProperty]
-    required: List[str]
-
-
 class OpenAIFunctionCallSpec(BaseModel):
     name: str
     description: str
@@ -109,22 +91,41 @@ class MessageNode(BaseModel):
     template_vars: Optional[Dict[str, str]] = {}
 
 
-T = TypeVar("T")
+class EventNode:
+    event_obj: Optional[Any] = None
 
+    def __init__(self, _direct=True):
+        if _direct:
+            raise ValueError(
+                "You should use the EventFactory to instantiate this class"
+            )
+        self.raw_event_str: str # Raw event data.
+        self._event_obj: Optional[Any] = None
+        # Consider adding a field that summarises the interrogation messages and is appended to the
+        # system_prompt at runtime.
+        # assume that the last message on the stack is from the user.
 
-class EventNode(BaseModel, Generic[T]):
-    raw_event_str: str  # Raw event data.
-    event_obj: Optional[T] = None
+        # Filled in with the messages from the AI and the user, excluding the system prompt.
+        self.history: Optional[List[MessageNode]] = None
 
-    # Consider adding a field that summarises the interrogation messages and is appended to the
-    # system_prompt at runtime.
-    # assume that the last message on the stack is from the user.
+        # Arbitrary meta data extracted for the event.
+        self.metadata: Optional[Dict[str, Any]] = {}
+    @property
+    def event_obj(self):
+        return self._event_obj
 
-    # TODO: Add validation to always have length >= 1 messages
-    # Filled in with the messages from the AI and the user, excluding the system prompt.
-    history: Optional[List[MessageNode]] = None
-    # Arbitrary meta data extracted for the event.
-    metadata: Optional[Dict[str, Any]] = {}
+    @event_obj.setter
+    def event_obj(self, _):
+        raise AttributeError(
+            "You cannot set the event_obj directly. Use the EventManager's create_event_obj to do this"
+        )
+
+    @classmethod
+    def _create(cls, raw_event_str: str):
+        """Shold be used from EventManager"""
+        obj = EventNode(_direct=False)
+        obj.raw_event_str: str = raw_event_str  # Raw event data.
+        return obj 
 
     @staticmethod
     def fsystem(msg: str):

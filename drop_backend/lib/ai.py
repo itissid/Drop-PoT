@@ -49,11 +49,9 @@ from ..model.ai_conv_types import (
     EventNode,
     InterrogationProtocol,
     MessageNode,
-    OpenAIFunctionCallSpec,
     Role,
-    UserExplicitFunctionCall,
-    UserFunctionCallMode,
 )
+from .event_node_manager import EventManager
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +83,9 @@ class AIDriver:
     using the interrogative_message variable.
     """
 
-    def __init__(self, ai: AltAI):
+    def __init__(self, ai: AltAI, event_manager: EventManager):
         self._ai = ai
+        self._event_manager = event_manager
 
     def drive(
         self, events: List[str]
@@ -98,7 +97,7 @@ class AIDriver:
         # Event <--1--*--> Message
         #
         for event in events:
-            event_node = EventNode(raw_event_str=event)
+            event_node = self._event_manager.create_event_node(event)
 
             # more than one messages during replay.
             user_message_nodes = yield event_node
@@ -135,29 +134,17 @@ class AIDriver:
         return "Done"
 
 
+# TODO: consider moving this to be method of AIDriver class
 def driver_wrapper(
     events: List[str],
     system_message: MessageNode,
     ai_driver: AIDriver,
+    # event_manager manages function calling over AI function calling API and
+    # then call function(s) over the responses.
+    event_manager: EventManager,
     # The callback that can given an EventNode give you the raw string
     # message content used in user messages to the AI.
-    message_content_formatter: Callable[[EventNode], str],
-    # A callback that gets you the function call spec for passing to OpenAI:
-    # https://platform.openai.com/docs/guides/gpt/function-calling
-    # TODO: Make these types less verbose.
-    function_call_spec_callable: Optional[
-        Callable[
-            [],
-            Tuple[
-                Optional[List[OpenAIFunctionCallSpec]],
-                Union[UserExplicitFunctionCall, UserFunctionCallMode],
-            ],
-        ]
-    ] = None,
-    # A callback to get the result of the function that the AI recommended you call.
-    function_callable_for_ai_function_call: Optional[
-        Callable[[MessageNode], Tuple[Optional[Any], Optional[str]]]
-    ] = None,
+    user_message_prompt_fn: Callable[[EventNode], str],
     interrogation_callback: Optional[InterrogationProtocol] = None,
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
     """
@@ -168,7 +155,6 @@ def driver_wrapper(
     """
     driver_gen = ai_driver.drive(events)
     event_node = driver_gen.send(None)  # type: ignore
-    # for event_node in driver_gen:
     while True:
         # Send the system prompt every time.
         try:
@@ -180,14 +166,14 @@ def driver_wrapper(
             event_node.history.append(system_message)
             # The function call should happen if its the last message from the user only.
             # 1. Should a function be called?
-            message_function_call_spec, explicit_fn_call = (
-                function_call_spec_callable()
-                if function_call_spec_callable is not None
-                else (None, None)
-            )
+
+            (
+                message_function_call_spec,
+                explicit_fn_call,
+            ) = event_manager.get_function_call_spec()
             user_message = MessageNode(
                 role=Role.user,
-                message_content=message_content_formatter(event_node),
+                message_content=user_message_prompt_fn(event_node),
                 functions=message_function_call_spec,
                 explicit_fn_call=explicit_fn_call,  # mypy ignore
             )
@@ -209,7 +195,7 @@ def driver_wrapper(
                 _process_ai_function_call_helper(
                     ai_message,
                     event_node,
-                    function_callable_for_ai_function_call,
+                    event_manager,
                 )
                 logger.debug(">>>")
                 if ai_message.message_content:
@@ -235,12 +221,12 @@ def driver_wrapper(
                         )
                         event_node.history.append(interrogation_message)
 
+                        event_node.history.append(ai_message)
                         _process_ai_function_call_helper(
                             ai_message,
                             event_node,
-                            function_callable_for_ai_function_call,
+                            event_manager,
                         )
-                        # event_node.history.append(ai_message)
                         interrogation_message = (
                             interrogation_callback.get_interrogation_message(
                                 event_node
@@ -252,27 +238,19 @@ def driver_wrapper(
         except StopIteration as excinfo:
             assert (
                 excinfo.value == "Done"
-            ), f"Expected StopIteration('Done') instead got: {excinfo}"
+            ), f"Expected StopIteration('Done') instead got: `{excinfo}`"
             logger.debug(excinfo)
             break
 
 
 def _process_ai_function_call_helper(
-    ai_message: MessageNode,
-    event_node: EventNode,
-    function_callable_for_ai_function_call: Optional[
-        Callable[[MessageNode], Tuple[Optional[Any], Optional[str]]]
-    ] = None,
+    ai_message: MessageNode, event_node: EventNode, event_manager: EventManager
 ):
-    if ai_message.ai_function_call:
-        assert (
-            function_callable_for_ai_function_call is not None
-        ), "AI wants to call a function but no user function to call one was provided."
-        (
-            fn_call_result,
-            fn_call_result_str,
-        ) = function_callable_for_ai_function_call(ai_message)
-        logger.debug("AI Function called")
+    (
+        event_obj,
+        fn_call_result_str,
+    ) = event_manager.try_call_fn_and_set_event(ai_message)
+    if event_obj:
         event_node.history.append(
             MessageNode(
                 role=Role.function,
@@ -280,9 +258,6 @@ def _process_ai_function_call_helper(
                 ai_function_call_result_name=ai_message.ai_function_call.name,
             )
         )
-        event_node.event_obj = fn_call_result
-    else:
-        logger.debug("No AI Function call")
 
 
 class AltAI:

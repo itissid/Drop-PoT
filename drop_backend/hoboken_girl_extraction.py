@@ -33,16 +33,14 @@ from .model.persistence_model import (
     add_event,
     get_num_events_by_version_and_filename,
 )
-from .model.types import Event, create_event
+from lib.event_node_manager import EventManager
 from .prompts.hoboken_girl_prompt import (
     base_prompt_hoboken_girl,
     default_parse_event_prompt,
 )
 from .utils.cli_utils import (
-    _optionally_format_colorama,
     ask_user_helper,
     choose_file,
-    formatted_dict,
     would_you_like_to_continue,
 )
 from .utils.color_formatter import ColoredFormatter
@@ -101,7 +99,7 @@ def setup(
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-moods":
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.mood_model_unsupervised import (
+        from .model.mood_model_unsupervised import (
             MoodJsonTable,
             SubmoodBasedEmbeddingTextAccessorTable,
         )
@@ -110,21 +108,19 @@ def setup(
         MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-events":
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.persistence_model import ParsedEventTable
+        from .model.persistence_model import ParsedEventTable
 
         validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-mood-embeddings":
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.mood_model_unsupervised import (
-            SubmoodBasedEmbeddingsTable,
-        )
+        from .model.mood_model_unsupervised import SubmoodBasedEmbeddingsTable
 
         validate_database(test_db=test_db)
         MoodBase.metadata.create_all(bind=obj["engine"])
     elif ctx.invoked_subcommand == "index-event-embeddings":
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.persistence_model import ParsedEventEmbeddingsTable
+        from .model.persistence_model import ParsedEventEmbeddingsTable
 
         validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
@@ -132,14 +128,14 @@ def setup(
         logger.info("Force Initializing Drop database.")
         validate_database(test_db=test_db)
         # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.persistence_model import (
+        from .model.persistence_model import (
             ParsedEventEmbeddingsTable,
             ParsedEventTable,
         )
 
         PersistenceBase.metadata.create_all(bind=obj["engine"])
         # pylint: disable=import-outside-toplevel
-        from main.model.mood_model_unsupervised import (
+        from .model.mood_model_unsupervised import (
             MoodJsonTable,
             SubmoodBasedEmbeddingsTable,
             SubmoodBasedEmbeddingTextAccessorTable,
@@ -343,7 +339,8 @@ def extract_serialize_events(
         return
 
     ai = AltAI()
-    ai_driver = AIDriver(ai)
+    event_manager = EventManager()
+    ai_driver = AIDriver(ai, event_manager=event_manager)
 
     system_message = MessageNode(
         role=Role.system,
@@ -356,6 +353,7 @@ def extract_serialize_events(
         events,
         system_message,
         ai_driver,
+        event_manager,
         interrogation_callback=InteractiveInterrogationProtocol(),
     )
     for i, (event, error) in enumerate(driver_wrapper_gen):
@@ -417,6 +415,7 @@ def hoboken_girl_driver_wrapper(
     events: List[str],
     system_message: MessageNode,
     ai_driver: AIDriver,
+    event_manager: EventManager,
     interrogation_callback: Optional[InterrogationProtocol] = None,
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
     driver_gen = driver_wrapper(
@@ -426,8 +425,7 @@ def hoboken_girl_driver_wrapper(
         message_content_formatter=lambda event_node: default_parse_event_prompt(
             event=event_node.raw_event_str
         ),
-        function_call_spec_callable=hoboken_girl_event_function_param,
-        function_callable_for_ai_function_call=call_ai_generated_function_for_event,
+        event_manager=event_manager,
         interrogation_callback=interrogation_callback,
     )
     for event, error in driver_gen:
@@ -439,51 +437,6 @@ def hoboken_girl_driver_wrapper(
         else:
             raise NotImplementedError("Only EventNode is supported for now.")
 
-
-# This will become a *config* later.
-ALLOWED_FUNCTIONS = {
-    "create_event": create_event,
-}
-
-
-def call_ai_generated_function_for_event(
-    ai_message: MessageNode,
-) -> Tuple[Optional[Event], Optional[str]]:
-    content = ai_message.message_content
-
-    logger.debug(content)  # Typically empty if there is a function call.
-    function_call = {}
-    if ai_message.ai_function_call is not None:
-        function_call = ai_message.ai_function_call.model_dump()
-    fn_name = function_call.get("name", None)
-    fn_args = function_call.get("arguments", "{}")
-
-    # NOTE: This step could be used to create training data for a future model to do this better.
-    event_obj = None
-    if fn_name and fn_name in ALLOWED_FUNCTIONS:
-        event_obj = ALLOWED_FUNCTIONS[fn_name](**fn_args)
-
-        logger.debug(
-            _optionally_format_colorama("Parsed event:", True, Fore.RED)
-        )
-        logger.debug(
-            "\n".join(
-                [
-                    f"{k}: {str(v)} ({type(v)})"
-                    for k, v in formatted_dict((event_obj.model_dump())).items()
-                ]
-            )
-        )
-        # The object returned by the function must have a reasonable __str__ to be useful.
-        kv = ", ".join(f"{k}={repr(v)}" for k, v in dict(event_obj).items())
-        return event_obj, f"{fn_name}({kv})"
-    else:
-        logger.warning(
-            "*** No function name found or not in Allowed functions list: %s! for event",
-            {",".join(ALLOWED_FUNCTIONS.keys())},
-        )
-        logger.warning("Last message recieved from AI:%s", content)
-    return None, None
 
 
 def _event_gen(ingestable_article_file: Path):

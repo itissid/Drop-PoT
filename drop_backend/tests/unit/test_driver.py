@@ -4,8 +4,9 @@ from unittest.mock import Mock, patch
 
 import time_uuid
 
-from lib.ai import AIDriver, driver_wrapper
-from model.ai_conv_types import (
+from drop_backend.lib.ai import AIDriver, AltAI, driver_wrapper
+from drop_backend.lib.event_node_manager import EventManager
+from drop_backend.model.ai_conv_types import (
     EventNode,
     InterrogationProtocol,
     MessageNode,
@@ -18,11 +19,13 @@ class TestAIDriver(unittest.TestCase):
         self._stub_uuid = time_uuid.TimeUUID.with_utcnow()
         self.contexts_captured = []  # list to store captured contexts
 
-    def mock_altai_send(self, MockedAltAI, side_effect_fn):
+    def mock_altai_send(self, MockedAltAI: AltAI, side_effect_fn):
         MockedAltAI().send.side_effect = side_effect_fn
 
-    def create_driver_instance(self, MockedAltAI) -> AIDriver:
-        return AIDriver(MockedAltAI())
+    def create_driver_instance(
+        self, MockedAltAI: AltAI, event_manager: EventManager
+    ) -> AIDriver:
+        return AIDriver(MockedAltAI(), event_manager)
 
     def create_driver_wrapper_instance(
         self,
@@ -30,15 +33,15 @@ class TestAIDriver(unittest.TestCase):
         events,
         system_message,
         mock_event_formatter_fn,
-        mock_function_call_spec_callable,
+        event_manager,
         interrogation_callback=None,
     ):
         return driver_wrapper(
             events,
             system_message,
-            self.create_driver_instance(MockedAltAI),
-            message_content_formatter=mock_event_formatter_fn,
-            function_call_spec_callable=mock_function_call_spec_callable,
+            self.create_driver_instance(MockedAltAI, event_manager),
+            event_manager=event_manager,
+            user_message_prompt_fn=mock_event_formatter_fn,
             interrogation_callback=interrogation_callback,
         )
 
@@ -53,14 +56,17 @@ class TestAIDriver(unittest.TestCase):
     ):
         self.assertIsInstance(event_node, EventNode)
         self.assertEqual(event_node.raw_event_str, expected_raw_event_str)
-        self.assertEqual(len(event_node.history), expected_len)
+        NL = "\n"
+        self.assertEqual(
+            len(event_node.history),
+            expected_len,
+            f"Messages: {NL.join([i.model_dump_json(indent=2) for i in event_node.history])}",
+        )
 
     # Modify the module path to the actual path.
 
-    @patch("main.lib.ai.AltAI", autospec=True)
+    @patch("drop_backend.lib.ai.AltAI", autospec=True)
     def test_drive_order_of_context_messages(self, MockedAltAI):
-        # Mock the AI's response. You might want to mock more responses based on the events you send in.
-        print("test_drive_order_of_context_messages")
         contexts_captured = []  # list to store captured contexts
 
         # Define a side effect function to inspect the context passed to the AI's send method.
@@ -73,9 +79,12 @@ class TestAIDriver(unittest.TestCase):
             )
 
         self.mock_altai_send(MockedAltAI, side_effect_fn)
-
-        driver = self.create_driver_instance(MockedAltAI)
+        event_manager: EventManager = Mock(spec=EventManager)
+        driver = self.create_driver_instance(MockedAltAI, event_manager)
         events = ["test_event"]
+        event_manager.create_event_node.side_effect = (
+            EventNode._create(i) for i in events
+        )
 
         drive_gen = driver.drive(events)
 
@@ -93,6 +102,7 @@ class TestAIDriver(unittest.TestCase):
 
         # Assertions
         self.assertIsInstance(result_msg_node, MessageNode)
+        self.assertEqual(event_manager.create_event_node.call_count, 1)
         self.assert_message_node(
             result_msg_node,
             MessageNode(
@@ -114,8 +124,8 @@ class TestAIDriver(unittest.TestCase):
             self.assert_message_node(i, j)
         self.assertEqual(len(contexts_captured[0]), 2)
 
-    @patch("main.lib.ai.AltAI", autospec=True)
-    def test_driver_wrapper(self, MockedAltAI):
+    @patch("drop_backend.lib.ai.AltAI", autospec=True)
+    def test_driver_wrapper(self, MockedAltAI: AltAI):
         # mock_event_prompt_fn, mock_event_function_param,
         """
         Send a list of events to the driver wrapper, the system_messge and a real AIDriver.
@@ -124,7 +134,7 @@ class TestAIDriver(unittest.TestCase):
         print("test_driver_wrapper")
         _stub_uuid = time_uuid.TimeUUID.with_utcnow()
 
-        def side_effect_fn(context):
+        def side_effect_fn(_):
             # Copy the context to store its state at this point in time
             return MessageNode(
                 role=Role.assistant,
@@ -134,11 +144,19 @@ class TestAIDriver(unittest.TestCase):
 
         mock_event_formatter_fn = Mock()
         mock_event_formatter_fn.return_value = "You need to parse test_event1"
-        mock_function_call_spec_callable = Mock()
-        mock_function_call_spec_callable.return_value = None, None
+        event_manager: EventManager = Mock(spec=EventManager)
+        events = ["test_event1"]
+        event_manager.create_event_node.side_effect = (
+            EventNode._create(i) for i in events
+        )
+        event_manager.get_function_call_spec.side_effect = [
+            (None, None) for _ in events
+        ]
+        event_manager.try_call_fn_and_set_event.side_effect = [
+            (None, None) for _ in events
+        ]
 
         self.mock_altai_send(MockedAltAI, side_effect_fn)
-        events = ["test_event1"]
         system_message = MessageNode(
             role=Role.system, message_content="test_system_message_content"
         )
@@ -147,7 +165,7 @@ class TestAIDriver(unittest.TestCase):
             events,
             system_message,
             mock_event_formatter_fn,
-            mock_function_call_spec_callable,
+            event_manager,
         )
         print("Calling next(driver_wrapper_gen)")
         event_node, _ = next(driver_wrapper_gen)
@@ -157,7 +175,8 @@ class TestAIDriver(unittest.TestCase):
         self.assertEqual(mock_event_formatter_fn.call_count, 1)
         (called_event_node,), _ = mock_event_formatter_fn.call_args
         self.assertEqual(called_event_node.raw_event_str, "test_event1")
-        self.assertEqual(mock_function_call_spec_callable.call_count, 1)
+        self.assertEqual(event_manager.get_function_call_spec.call_count, 1)
+        self.assertEqual(event_manager.create_event_node.call_count, 1)
 
         self.assertEqual(event_node.raw_event_str, "test_event1")
         self.assert_message_node(
@@ -184,7 +203,7 @@ class TestAIDriver(unittest.TestCase):
         with self.assertRaises(StopIteration):
             next(driver_wrapper_gen)
 
-    @patch("main.lib.ai.AltAI", autospec=True)
+    @patch("drop_backend.lib.ai.AltAI", autospec=True)
     def test_driver_for_multiple_events(self, MockedAltAI):
         """
         Assert on message sequence for multiple events. The idea is to test
@@ -201,16 +220,24 @@ class TestAIDriver(unittest.TestCase):
                 id=_stub_uuid,
             )
 
+        events = ["test_event1", "test_event2"]
         mock_event_formatter_fn = Mock()
-        mock_function_call_spec_callable = Mock()
+        event_manager: EventManager = Mock(spec=EventManager)
+        event_manager.create_event_node.side_effect = (
+            EventNode._create(i) for i in events
+        )
+        event_manager.get_function_call_spec.side_effect = [
+            (None, None) for _ in events
+        ]
+        event_manager.try_call_fn_and_set_event.side_effect = [
+            (None, None) for _ in events
+        ]
 
         mock_event_formatter_fn.side_effect = [
             "You need to parse test_event1",
             "You need to parse test_event2",
         ]
-        mock_function_call_spec_callable.return_value = None, None
         MockedAltAI().send.side_effect = side_effect_fn
-        events = ["test_event1", "test_event2"]
         system_message = MessageNode(
             role=Role.system, message_content="test_system_message_content"
         )
@@ -219,7 +246,7 @@ class TestAIDriver(unittest.TestCase):
             events,
             system_message,
             mock_event_formatter_fn,
-            mock_function_call_spec_callable,
+            event_manager,
         )
 
         print("Calling next(driver_wrapper_gen)")
@@ -236,7 +263,7 @@ class TestAIDriver(unittest.TestCase):
             ),
         )
 
-    @patch("main.lib.ai.AltAI", autospec=True)
+    @patch("drop_backend.lib.ai.AltAI", autospec=True)
     def test_interrogation(self, MockedAltAI):
         print("test_driver_for_multiple_events")
         _stub_uuid = time_uuid.TimeUUID.with_utcnow()
@@ -261,24 +288,33 @@ class TestAIDriver(unittest.TestCase):
                 return None
 
         mock_interrogation_callback = MockInterrogationProtocol()
-
+        assistant_responses = iter(['Assistant Response 1', 'Assistant Response 2', 'Assistant Response 3', 'Assistant Response 4'])
         def side_effect_fn(context):
             # Copy the context to store its state at this point in time
             return MessageNode(
                 role=Role.assistant,
-                message_content="Assistant Response",
+                message_content=next(assistant_responses),
                 id=_stub_uuid,
             )
 
+        events = ["test_event1", "test_event2"]
         mock_event_formatter_fn = Mock()
-        mock_function_call_spec_callable = Mock()
+        event_manager: EventManager = Mock(spec=EventManager)
+        event_manager.create_event_node.side_effect = (
+            EventNode._create(i) for i in events
+        )
+        event_manager.get_function_call_spec.side_effect = [
+            (None, None) for _ in events
+        ]
+        event_manager.try_call_fn_and_set_event.side_effect = [
+            (None, None) for _ in events+["And once for the interrogation"]
+        ]
+
         mock_event_formatter_fn.side_effect = [
             "You need to parse test_event1",
             "You need to parse test_event2",
         ]
-        mock_function_call_spec_callable.return_value = None, None
         MockedAltAI().send.side_effect = side_effect_fn
-        events = ["test_event1", "test_event2"]
         system_message = MessageNode(
             role=Role.system, message_content="test_system_message_content"
         )
@@ -287,7 +323,7 @@ class TestAIDriver(unittest.TestCase):
             events,
             system_message,
             mock_event_formatter_fn,
-            mock_function_call_spec_callable,
+            event_manager,
             interrogation_callback=mock_interrogation_callback,
         )
 
@@ -303,7 +339,7 @@ class TestAIDriver(unittest.TestCase):
         self.assert_message_node(
             event_node.history[4],
             MessageNode(
-                role=Role.assistant, message_content="Assistant Response"
+                role=Role.assistant, message_content="Assistant Response 2"
             ),
         )
 
