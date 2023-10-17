@@ -5,6 +5,7 @@ import logging
 from dataclasses import asdict
 from typing import Dict, List, Optional
 
+from pydantic import BaseModel
 from sqlalchemy import (
     JSON,
     Column,
@@ -24,7 +25,6 @@ from sqlalchemy.schema import UniqueConstraint
 
 from ..utils.db_utils import session_manager
 from .ai_conv_types import MessageNode
-from .types import Event
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class ParsedEventEmbeddingsTable(Base):
 @session_manager
 def add_event(
     session,
-    event: Optional[Event],
+    event: Optional[BaseModel],
     original_text: str,
     failure_reason: Optional[str],
     replay_history: Optional[List[MessageNode]],
@@ -135,12 +135,6 @@ def add_event(
     version: str,
     chat_history: Optional[List[str]] = None,
 ) -> int:
-    if event:
-        event_dict = dict(event)
-        event_dict.pop("name", None)
-        event_dict.pop("description", None)
-    else:
-        event_dict = None
     try:
         replay_history_json = None
         if replay_history:
@@ -148,9 +142,11 @@ def add_event(
                 message.model_dump(mode="json") for message in replay_history
             ]
         event_table = ParsedEventTable(
-            name=event.name if event else None,
-            description=event.description if event else None,
-            event_json=event_dict,
+            name=event.name if event and "name" in event.model_fields else None,
+            description=event.description
+            if event and "description" in event.model_fields
+            else None,
+            event_json=event.model_dump_json(),
             original_event=original_text,
             replay_history=replay_history_json,
             chat_history=chat_history,

@@ -51,7 +51,7 @@ from ..model.ai_conv_types import (
     MessageNode,
     Role,
 )
-from .event_node_manager import EventManager
+from .event_node_manager import BaseEventManager 
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class AIDriver:
     using the interrogative_message variable.
     """
 
-    def __init__(self, ai: AltAI, event_manager: EventManager):
+    def __init__(self, ai: AltAI, event_manager: BaseEventManager):
         self._ai = ai
         self._event_manager = event_manager
 
@@ -141,7 +141,7 @@ def driver_wrapper(
     ai_driver: AIDriver,
     # event_manager manages function calling over AI function calling API and
     # then call function(s) over the responses.
-    event_manager: EventManager,
+    event_manager: BaseEventManager,
     # The callback that can given an EventNode give you the raw string
     # message content used in user messages to the AI.
     user_message_prompt_fn: Callable[[EventNode], str],
@@ -244,7 +244,7 @@ def driver_wrapper(
 
 
 def _process_ai_function_call_helper(
-    ai_message: MessageNode, event_node: EventNode, event_manager: EventManager
+    ai_message: MessageNode, event_node: EventNode, event_manager: BaseEventManager 
 ):
     (
         event_obj,
@@ -326,7 +326,7 @@ class AltAI:
         explicit_fn_call,
     ) -> MessageNode:
         response = self._try_completion(
-            context_messages, functions=functions, fn_call=explicit_fn_call
+            context_messages, functions=functions, function_call=explicit_fn_call
         )
         chat, func_call = _chat_function_call_from_response(response)
 
@@ -344,7 +344,7 @@ class AltAI:
             ),
         )
 
-    def _try_completion(self, messages, functions=None, fn_call=None):
+    def _try_completion(self, messages, functions=None, function_call=None):
         logger.debug("Creating a new chat completion: %s", messages)
         try:
             if not functions:
@@ -360,7 +360,7 @@ class AltAI:
                     stream=True,
                     model=self.model,
                     functions=functions,
-                    function_call=fn_call or None,
+                    function_call=function_call or None,
                     temperature=self.temperature,
                 )
         except Exception as exc:
@@ -368,7 +368,7 @@ class AltAI:
                 "Error in chat completion for messages %s \n functions: %s, function_call=%s",
                 str(messages),
                 str(functions),
-                str(fn_call),
+                str(function_call),
             )
             raise exc
         return response

@@ -56,14 +56,11 @@ def index_event_moods(ctx: typer.Context, filename: str, version: str):
 
 #     mood_commands._generate_and_index_event_moods(ctx, filename, version)
 from pathlib import Path
-from ..lib.event_node_type_generator import generate_event_node_extension
 
 def gen_model_code_bindings(
     type_name: str,
     schema_directory_prefix: str = "drop_backend/types/schema",
     type_module_prefix: str = "drop_backend.types",
-    # where to put the EventNode extensions.
-    model_directory_prefix: str = "drop_backend/model/generated",
 ):
     schema_directory = Path(schema_directory_prefix)
     if (
@@ -78,7 +75,7 @@ def gen_model_code_bindings(
     )
     # 1. generate the schema
     if not update_schema:
-        typer.echo("Not updating/generating schema")
+        typer.echo(f"Not updating/generating schema for {type_name}")
         return
     _, schema_module_prefix = gen_schema_impl(
         type_name, schema_directory_prefix, type_module_prefix
@@ -86,15 +83,11 @@ def gen_model_code_bindings(
 
     # 2. generate the function that uses schema
     schema_module = generate_function_call_param_function(
-        type_name, schema_module_prefix
+        type_name, schema_module_prefix, type_module_prefix
     )
     typer.echo(f"schema module is in path: {schema_module.__name__}")
 
-    # 3. Generate the event module
-    model_module, _ = generate_event_node_extension(type_name, model_directory_prefix)
-    typer.echo(f"model module is in path: {model_module.__name__}")
-
-    # 4. Generate the factories.
+    # Now use the event_node_manager.EventManager to use the schema as well as the type.
 
 
 # app.add_typer(data_ingestion_commands_app)

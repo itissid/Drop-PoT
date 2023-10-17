@@ -74,6 +74,8 @@ import re
 from pathlib import Path
 from types import ModuleType
 
+from ..types.base import CreatorBase
+
 # 1 lets use JSONSchema to generate the scheam from above
 
 # define the name description, categories, is_ongoing(boolean), is_paid(boolean), has_promotion(boolean) as required.
@@ -88,40 +90,50 @@ from types import ModuleType
 def generate_function_call_param_function(
     type_name: str,
     schema_module_prefix: str,
+    type_module_prefix: str,
 ):
     # Convert type name to module name
     # Convert type name to module name
-    module_name = camel_to_snake(type_name)
-
+    type_module_name = camel_to_snake(type_name)
+    type_module_instance = importlib.import_module(
+        f"{type_module_prefix}.{type_module_name}"
+    )
+    type_class = getattr(type_module_instance, type_name)
+    assert (
+        CreatorBase in type_class.__mro__,
+        f"Type {type_name} must inherit from CreatorBase",
+    )
     # Dynamically import the schema function
     schema_module = importlib.import_module(
-        f"{schema_module_prefix}.{module_name}_schema"
+        f"{schema_module_prefix}.{type_module_name}_schema"
     )
-    schema_function_name = f"{module_name}_json_schema"
+    schema_function_name = f"{type_module_name}_json_schema"
 
     # Define the function body for the function call param function
     func_code = f"""
 # Generated code. Don't change this file unless you know what you are doing.
 import json
-from typing import Tuple
+from typing import Tuple, List
+
 
 from drop_backend.model.ai_conv_types import (
     OpenAIFunctionCallSpec, UserExplicitFunctionCall
 )
 
-def {module_name}_function_call_param() -> Tuple[OpenAIFunctionCallSpec, UserExplicitFunctionCall]:
-    json_schema_{module_name} = {schema_function_name}()
+def {type_module_name}_function_call_param() -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
+    json_schema_{type_module_name} = {schema_function_name}()
     print('.')
-    params = {{"parameters": json.loads(json_schema_{module_name})}}
+    params = {{"parameters": json.loads(json_schema_{type_module_name})}}
     return (
         [
             OpenAIFunctionCallSpec(
-                name= "create_{module_name}",
+                name= "{type_class.default_fn_name()}",
                 description = "Parse the data into a {type_name} object",
                 **params,
             )
         ],
-        UserExplicitFunctionCall(name="create_{module_name}"),
+        # TODO: Also support "auto" and "none"
+        UserExplicitFunctionCall(name="{type_class.default_fn_name()}"),
     )
 """
 
@@ -269,4 +281,4 @@ def check_should_update_schema(
                 return True
             else:
                 return False
-        return True
+    return True

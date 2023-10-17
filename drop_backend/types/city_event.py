@@ -10,7 +10,9 @@ from ..utils.extraction_utils import flatten_list
 logger = logging.getLogger(__name__)
 
 from typing import Annotated
+
 from .base import CreatorBase
+
 
 class PaymentMode(enum.Enum):
     # Ticketed events like art shows, concerts, networking events and courses.
@@ -70,8 +72,17 @@ class CityEvent(BaseModel, CreatorBase):
     links: Optional[List[str]] = Field(default=None)
 
     @classmethod
-    def create(**kwargs):
-        return CityEvent(**kwargs)
+    def create(cls, function_name: str, **kwargs) -> "CityEvent":
+        if function_name == cls.default_fn_name():
+            return CityEvent(**kwargs)
+        else:
+            raise AttributeError(
+                f"Function {function_name} not supported for {cls.__name__}"
+            )
+
+    @classmethod
+    def default_fn_name(cls) -> str:
+        return "create_city_event"
 
     def __str__(self):
         return ", ".join(
