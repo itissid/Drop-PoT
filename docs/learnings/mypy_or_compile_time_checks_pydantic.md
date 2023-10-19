@@ -1,3 +1,8 @@
+0. Make life easier to use mypy in a python project:
+   - Install the mypy extension and make sure you activate the setting https://github.com/matangover/mypy-vscode/issues/33#issuecomment-864880185
+        - You don't even need to set the dmypy  in mypy.ini since it just "works" with the above
+
+    
 1. Pydantic needs a plugin for MyPy validation. There are some flags that can
 control validation of initializaton of Pydantic models from, say, dictionaries.
 These flags are set in the `mypy.ini` file:

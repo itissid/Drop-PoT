@@ -2,13 +2,11 @@ import datetime
 import logging
 import logging.config
 import re
-from dataclasses import asdict
 from pathlib import Path
 from typing import Generator, List, Optional, Tuple
 
 import click
 import typer
-from colorama import Fore
 from pydantic import ValidationError
 
 from .commands.embedding_commands import demo_retrieval  # index_events,
@@ -19,6 +17,7 @@ from .commands.embedding_commands import (
 )
 from .lib.ai import AIDriver, AltAI, driver_wrapper
 from .lib.db import DB
+from .lib.event_node_manager import EventManager
 from .lib.interrogation import InteractiveInterrogationProtocol
 from .model.ai_conv_types import (
     EventNode,
@@ -32,7 +31,6 @@ from .model.persistence_model import (
     add_event,
     get_num_events_by_version_and_filename,
 )
-from lib.event_node_manager import EventManager
 from .prompts.hoboken_girl_prompt import (
     base_prompt_hoboken_girl,
     default_parse_event_prompt,
@@ -421,7 +419,7 @@ def hoboken_girl_driver_wrapper(
         events,
         system_message,
         ai_driver,
-        message_content_formatter=lambda event_node: default_parse_event_prompt(
+        user_message_prompt_fn=lambda event_node: default_parse_event_prompt(
             event=event_node.raw_event_str
         ),
         event_manager=event_manager,
@@ -435,7 +433,6 @@ def hoboken_girl_driver_wrapper(
             yield event, error
         else:
             raise NotImplementedError("Only EventNode is supported for now.")
-
 
 
 def _event_gen(ingestable_article_file: Path):

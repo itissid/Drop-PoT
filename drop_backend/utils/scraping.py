@@ -4,7 +4,7 @@
 
 import re
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup # type: ignore
 
 # write a function that can extract text from a list of URLs and returns a text documents per URL
 def get_documents(urls: list) -> dict[str, str]:

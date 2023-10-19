@@ -36,7 +36,7 @@ from typing import (
 )
 
 import openai
-from pydantic import UUID1, ValidationError
+from pydantic import ValidationError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -51,7 +51,7 @@ from ..model.ai_conv_types import (
     MessageNode,
     Role,
 )
-from .event_node_manager import BaseEventManager 
+from .event_node_manager import BaseEventManager
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +200,8 @@ def driver_wrapper(
                 logger.debug(">>>")
                 if ai_message.message_content:
                     logger.debug(
-                        f"Got message_content from AI:\n {ai_message.message_content}"
+                        "Got message_content from AI:\n%s",
+                        ai_message.message_content,
                     )
                 # hook to interact with anything
                 # Human interaction with AI for debugging, AI Agents what have you.
@@ -244,13 +245,17 @@ def driver_wrapper(
 
 
 def _process_ai_function_call_helper(
-    ai_message: MessageNode, event_node: EventNode, event_manager: BaseEventManager 
+    ai_message: MessageNode,
+    event_node: EventNode,
+    event_manager: BaseEventManager,
 ):
     (
         event_obj,
         fn_call_result_str,
     ) = event_manager.try_call_fn_and_set_event(ai_message)
     if event_obj:
+        assert event_node.history is not None
+        assert ai_message.ai_function_call is not None
         event_node.history.append(
             MessageNode(
                 role=Role.function,
@@ -279,8 +284,16 @@ class AltAI:
             )
             self.model = "gpt-4"
 
-    def _send_with_function(  # pylint: disable=no-self-argument
-        send_fn: Callable[[AltAI, List[MessageNode]], MessageNode]
+    def _send_with_function(  #  type: ignore # pylint: disable=no-self-argument
+        send_fn: Callable[
+            [
+                AltAI,
+                List[Dict[str, Any]],
+                Optional[List[Dict[str, Any]]],
+                Optional[Union[str, Dict[str, str]]],
+            ],
+            MessageNode,
+        ]
     ) -> Callable[[Any, List[MessageNode]], MessageNode]:
         """
         Custom logic to send a message to the AI and then send the function call if requested.
@@ -321,12 +334,14 @@ class AltAI:
     @_send_with_function  # type: ignore
     def send(
         self,
-        context_messages: List[Dict[str, str]],
-        functions,
-        explicit_fn_call,
+        context_messages: List[Dict[str, Any]],
+        functions: Optional[List[Dict[str, Any]]],
+        explicit_fn_call: Optional[Union[str, Dict[str, str]]],
     ) -> MessageNode:
         response = self._try_completion(
-            context_messages, functions=functions, function_call=explicit_fn_call
+            context_messages,
+            functions=functions,
+            function_call=explicit_fn_call,
         )
         chat, func_call = _chat_function_call_from_response(response)
 
@@ -344,7 +359,12 @@ class AltAI:
             ),
         )
 
-    def _try_completion(self, messages, functions=None, function_call=None):
+    def _try_completion(
+        self,
+        messages: list[dict[str, str]],
+        functions: Optional[list[dict[str, Any]]] = None,
+        function_call=None,
+    ):
         logger.debug("Creating a new chat completion: %s", messages)
         try:
             if not functions:

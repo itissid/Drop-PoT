@@ -6,14 +6,12 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..utils.extraction_utils import flatten_list
+from .base import CreatorBase
 
 logger = logging.getLogger(__name__)
 
-from typing import Annotated
 
-from .base import CreatorBase
-
-
+# pylint: disable=invalid-name
 class PaymentMode(enum.Enum):
     # Ticketed events like art shows, concerts, networking events and courses.
     ticket = "ticket"
@@ -72,7 +70,7 @@ class CityEvent(BaseModel, CreatorBase):
     links: Optional[List[str]] = Field(default=None)
 
     @classmethod
-    def create(cls, function_name: str, **kwargs) -> "CityEvent":
+    def create(cls, function_name: str, **kwargs) -> "CityEvent":  # type: ignore
         if function_name == cls.default_fn_name():
             return CityEvent(**kwargs)
         else:
@@ -81,7 +79,7 @@ class CityEvent(BaseModel, CreatorBase):
             )
 
     @classmethod
-    def default_fn_name(cls) -> str:
+    def default_fn_name(cls) -> str:  # type: ignore[override]
         return "create_city_event"
 
     def __str__(self):
@@ -91,7 +89,7 @@ class CityEvent(BaseModel, CreatorBase):
 
     def __post_init__(self):
         if not self.is_ongoing and self.start_date is None:
-            logger.warn(
+            logger.warning(
                 "Event start date not mentioned but the event is not ongoing."
             )
         if self.is_paid and self.payment_mode is None:

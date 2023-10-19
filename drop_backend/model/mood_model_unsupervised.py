@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Any, List
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
-from jsonpath_ng import parse
+from jsonpath_ng import parse  # type: ignore
 from sqlalchemy import (
     Column,
     ForeignKey,

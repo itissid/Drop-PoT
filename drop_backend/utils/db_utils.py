@@ -3,7 +3,7 @@ from functools import wraps
 import click
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy_utils import create_database, database_exists
+from sqlalchemy_utils import create_database, database_exists # type: ignore
 
 
 def validate_database(test_db: bool = False):

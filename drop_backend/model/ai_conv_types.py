@@ -4,13 +4,14 @@ import logging
 from abc import abstractmethod
 from typing import Any, Dict, Generator, List, Optional, Union
 
-import time_uuid
-from pydantic import UUID1, BaseModel, Field, Json, validator
+import time_uuid  # type: ignore
+from pydantic import UUID1, BaseModel, Field, Json
 
 logger = logging.getLogger(__name__)
 
 
 class Role(enum.Enum):
+    # pylint: disable=invalid-name
     system = "system"
     assistant = "assistant"
     user = "user"
@@ -91,14 +92,12 @@ class MessageNode(BaseModel):
 
 
 class EventNode:
-    event_obj: Optional[Any] = None
-
     def __init__(self, _direct=True):
         if _direct:
             raise ValueError(
                 "You should use the EventFactory to instantiate this class"
             )
-        self.raw_event_str: str # Raw event data.
+        self.raw_event_str: str  # Raw event data.
         self._event_obj: Optional[Any] = None
         # Consider adding a field that summarises the interrogation messages and is appended to the
         # system_prompt at runtime.
@@ -109,6 +108,7 @@ class EventNode:
 
         # Arbitrary meta data extracted for the event.
         self.metadata: Optional[Dict[str, Any]] = {}
+
     @property
     def event_obj(self):
         return self._event_obj
@@ -123,8 +123,8 @@ class EventNode:
     def _create(cls, raw_event_str: str):
         """Shold be used from EventManager"""
         obj = EventNode(_direct=False)
-        obj.raw_event_str: str = raw_event_str  # Raw event data.
-        return obj 
+        obj.raw_event_str = raw_event_str  # Raw event data.
+        return obj
 
     @staticmethod
     def fsystem(msg: str):
@@ -156,26 +156,24 @@ class EventNode:
         """
         assert context and len(context) > 0
         if len(context) == 1:
-            """
-            *****************
-            Single message user cases.
-            *****************
-            With only one message the transformation is simple.
-            1. If the first message is system message the transformation is
-            {
-                "role": "system",
-                "content": "You are an helpful AI assistant who can help me get the weather.",
-            }
-            2. If the first message is a user message with a function call:
-            {
-                "role": "user",
-                "content": "What weather is it in Hoboken, NJ?",
-                "functions": {},
-                "function_call": {"name": "get_current_weather"} }
-            }
-            3.  It can be an assistant message but that is odd
-                https://asciinema.org/connect/382648b0-b78a-444b-956d-83bd1e71c9bb
-            """
+            # *****************
+            # Single message user cases.
+            # *****************
+            # With only one message the transformation is simple.
+            # 1. If the first message is system message the transformation is
+            # {
+            #     "role": "system",
+            #     "content": "You are an helpful AI assistant who can help me get the weather.",
+            # }
+            # 2. If the first message is a user message with a function call:
+            # {
+            #     "role": "user",
+            #     "content": "What weather is it in Hoboken, NJ?",
+            #     "functions": {},
+            #     "function_call": {"name": "get_current_weather"} }
+            # }
+            # 3.  It can be an assistant message but that is odd
+            #     https://asciinema.org/connect/382648b0-b78a-444b-956d-83bd1e71c9bb
             message = context[0]
             if message.role == Role.user:
                 msg: Dict[str, Any] = {
@@ -202,65 +200,63 @@ class EventNode:
                 )
             return
 
-        """
-            ********************
-            Multi message use cases
-            ********************
+            # ********************
+            # Multi message use cases
+            # ********************
 
-            1. If a function call is the last user message and the message_node.functions is set 
-            then we need to ask AI to call function, 
-            User Function Call Message : 
-            return ({
-                    'role: 'user',
-                    'content': 'Whats the weather like in boston',
-                }, 
-                message_node.functions,
-            )
-            
-            2. If user message function call is not the last message it will be followed by an assistant message (possibly with 
-                a function call), In this case we need to send to AI in the replay scenario:
+            # 1. If a function call is the last user message and the message_node.functions is set
+            # then we need to ask AI to call function,
+            # User Function Call Message :
+            # return ({
+            #         'role: 'user',
+            #         'content': 'Whats the weather like in boston',
+            #     },
+            #     message_node.functions,
+            # )
 
-            {
-                'role: 'user',
-                'content': 'Whats the weather like in boston',
-            },
-            and 
-            {
-                "content": null,
-                "function_call": {
-                    "arguments": "{\n\"location\": \"Boston, MA\"\n}",
-                    "name": "get_current_weather"
-                },
-                "role": "assistant"
-            }
-            and 
-            {
-                "role": "function",
-                "name": "get_current_weather",
-                "content": <FUNCTION RESPONSE>
-            }
-            See https://platform.openai.com/docs/guides/gpt/function-calling for more details
+            # 2. If user message function call is not the last message it will be followed by an assistant message (possibly with
+            #     a function call), In this case we need to send to AI in the replay scenario:
 
-            3. If the user message(function call or not) is followed by an assistant message without a function call then we simply 
-            need to send to AI:
-            {
-                'role: 'user',
-                'content': 'Whats the weather like in boston',
+            # {
+            #     'role: 'user',
+            #     'content': 'Whats the weather like in boston',
+            # },
+            # and
+            # {
+            #     "content": null,
+            #     "function_call": {
+            #         "arguments": "{\n\"location\": \"Boston, MA\"\n}",
+            #         "name": "get_current_weather"
+            #     },
+            #     "role": "assistant"
+            # }
+            # and
+            # {
+            #     "role": "function",
+            #     "name": "get_current_weather",
+            #     "content": <FUNCTION RESPONSE>
+            # }
+            # See https://platform.openai.com/docs/guides/gpt/function-calling for more details
 
-            }
-            and
-            {
-                'role': 'assistant',
-                "content": "I'm sorry, but I am an AI language model and do
-                not have real-time data. The weather in Boston can change
-                frequently, so I would recommend checking a reliable weather
-                website or using a weather app for the most up-to-date
-                information."
-            }
+            # 3. If the user message(function call or not) is followed by an assistant message without a function call then we simply
+            # need to send to AI:
+            # {
+            #     'role: 'user',
+            #     'content': 'Whats the weather like in boston',
 
-            """
+            # }
+            # and
+            # {
+            #     'role': 'assistant',
+            #     "content": "I'm sorry, but I am an AI language model and do
+            #     not have real-time data. The weather in Boston can change
+            #     frequently, so I would recommend checking a reliable weather
+            #     website or using a weather app for the most up-to-date
+            #     information."
+            # }
+
         for message_curr, message_next in zip(context[:-1], context[1:]):
-            """The use cases get a bit complex but the algo is described above."""
+            # The use cases get a bit complex but the algo is described above.
             if message_curr.role == Role.system:
                 yield {
                     "role": message_curr.role.name,
@@ -275,7 +271,7 @@ class EventNode:
                     "content": message_curr.message_content,
                 }
             elif message_curr.role == Role.assistant:
-                msg: Dict[str, Any] = {
+                msg: Dict[str, Any] = {  # type: ignore
                     "role": Role.assistant.name,
                 }
                 if message_curr.ai_function_call:
@@ -297,14 +293,16 @@ class EventNode:
                         }
                     else:
                         # In case of a replay this could be handled and a function role could be appended to the message sequence by calling the function again.
-                        msg = (
-                            f"Function call request to AI without a function result. Insert a message after this one```{message_curr.model_dump_json(indent=2)}```"
+                        err_msg = (
+                            "Function call request to AI without a function result. Insert a message after this one```%s```"
                             + "\n"
                             + "with role function as a result of the call and then call me again."
                         )
-                        logger.error(msg)
+                        logger.error(
+                            err_msg, message_curr.model_dump_json(indent=2)
+                        )
                         raise ValueError(
-                            f"{msg}. This message is: {message_next.model_dump_json(indent=2)}"
+                            f"{err_msg}. This message is: {message_next.model_dump_json(indent=2)}"
                         )
                 else:
                     msg["content"] = message_curr.message_content
@@ -340,15 +338,14 @@ class EventNode:
             yield msg
         elif context[-1].role == Role.assistant:
             if context[-1].ai_function_call is not None:
-                msg = "Function call request to AI without a function result. Add a function role with result of the call and then call me again."
-                logger.error(msg)
-                raise ValueError(msg)
-            else:
-                msg = {
-                    "role": context[-1].role.name,
-                }
-                msg["content"] = context[-1].message_content
-                yield msg
+                err_msg = "Function call request to AI without a function result. Add a function role with result of the call and then call me again."
+                logger.error(err_msg)
+                raise ValueError(err_msg)
+            msg = {
+                "role": context[-1].role.name,
+            }
+            msg["content"] = context[-1].message_content
+            yield msg
         elif context[-1].role == Role.system:
             yield {
                 "role": context[-1].role.name,
@@ -366,5 +363,3 @@ class InterrogationProtocol:
         self, event: EventNode
     ) -> Optional[MessageNode]:
         ...
-
-    pass

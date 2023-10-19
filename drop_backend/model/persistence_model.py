@@ -20,7 +20,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import relationship
 from sqlalchemy.schema import UniqueConstraint
 
 from ..utils.db_utils import session_manager
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 
-class ParsedEventTable(Base):
+class ParsedEventTable(Base):  # type: ignore
     """
     Table that holds the top level event and parsing info parsed from unstructured event data.
     """
@@ -48,17 +48,17 @@ class ParsedEventTable(Base):
     chat_history = Column(JSON, nullable=True)
     replay_history = Column(JSON, nullable=True)
     version = Column(String, nullable=False)
-    parsed_event_embedding = relationship(
+    parsed_event_embedding = relationship(  # type: ignore
         "ParsedEventEmbeddingsTable",
         uselist=False,
         back_populates="parsed_event",
     )
-    geo_addresses = relationship(
+    geo_addresses = relationship(  # type: ignore
         "GeoAddresses", back_populates="related_parsed_events"
     )
 
 
-class GeoAddresses(Base):
+class GeoAddresses(Base):  # type: ignore
     __tablename__ = "GeoAddresses"
     id = Column(Integer, primary_key=True)
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
@@ -66,7 +66,7 @@ class GeoAddresses(Base):
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     failure_reason = Column(String, nullable=True)
-    related_parsed_events = relationship(
+    related_parsed_events = relationship(  # type: ignore
         "ParsedEventTable", back_populates="geo_addresses"
     )
 
@@ -99,7 +99,7 @@ def add_geoaddress(
         session.close()
 
 
-class ParsedEventEmbeddingsTable(Base):
+class ParsedEventEmbeddingsTable(Base):  # type: ignore
     __tablename__ = "ParsedEventEmbeddingsTable"
 
     id = Column(Integer, primary_key=True)
@@ -111,7 +111,7 @@ class ParsedEventEmbeddingsTable(Base):
     )
 
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
-    parsed_event = relationship(
+    parsed_event = relationship(  # type: ignore
         "ParsedEventTable", back_populates="parsed_event_embedding"
     )
     __table_args__ = (
@@ -142,11 +142,11 @@ def add_event(
                 message.model_dump(mode="json") for message in replay_history
             ]
         event_table = ParsedEventTable(
-            name=event.name if event and "name" in event.model_fields else None,
-            description=event.description
+            name=event.name if event and "name" in event.model_fields else None,  # type: ignore
+            description=event.description  # type: ignore
             if event and "description" in event.model_fields
             else None,
-            event_json=event.model_dump_json(),
+            event_json=event.model_dump_json() if event is not None else None,
             original_event=original_text,
             replay_history=replay_history_json,
             chat_history=chat_history,
@@ -198,8 +198,10 @@ def get_num_events_by_version_and_filename(
     try:
         # Query the database for the number of events with the given version and filename
         num_events = (
-            session.query(func.count(ParsedEventTable.id))
-            .filter(
+            session.query(
+                func.count(ParsedEventTable.id)  # pylint: disable=not-callable
+            )
+            .filter(  # pylint: disable=not-callable
                 ParsedEventTable.version == version,
                 ParsedEventTable.filename == filename,
             )
@@ -261,7 +263,7 @@ def get_parsed_events(
         query = query.with_entities(*columns)
     parsed_events = query.all()
     # add all parsed_events to a dictionary
-    return parsed_events
+    return [e for e in parsed_events]
 
 
 @session_manager

@@ -1,15 +1,18 @@
 # Entry point for all commands. Set up things here like DB, logging or whatever.
 import logging
+from typing import List
 
 import click
 import typer
 
+from pathlib import Path
 from ..lib.config_generator import check_should_update_schema
 from ..lib.config_generator import gen_schema as gen_schema_impl
 from ..lib.config_generator import generate_function_call_param_function
 from ..model.merge_base import combined_meta_data
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
+from .mood_commands import generate_and_index_event_moods
 
 # from . import mood_commands
 

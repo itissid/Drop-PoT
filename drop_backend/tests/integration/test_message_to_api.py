@@ -3,7 +3,7 @@ import os
 import unittest
 from typing import Any, Dict, List, Optional, Tuple
 
-import ipdb
+import ipdb  # type: ignore
 import openai
 from dotenv import load_dotenv
 
@@ -30,14 +30,14 @@ class NoFunctionCallEventManager(BaseEventManager):
     def get_function_call_spec(
         self,
     ) -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
-        return [], None
+        return [], {}
 
     def extract_fn_name(self, ai_message: MessageNode) -> Optional[str]:
         return None
 
     def extract_fn_args(
         self, ai_message: MessageNode
-    ) -> (List[Any], Dict[str, Any]):
+    ) -> Tuple[List[Any], Dict[str, Any]]:
         return [], {}
 
     def should_call_function(self, ai_message: MessageNode) -> bool:
@@ -177,13 +177,11 @@ class TestSendToOpenAIAPI(unittest.TestCase):
             event.history[3].ai_function_call_result_name, "get_current_weather"
         )
         print(event.history[3].ai_function_call_result)
-        import ipdb
 
-        ipdb.set_trace()
         self.assertEqual(
             event.event_obj,
             WeatherEvent(
-                **{
+                **{  # type: ignore[arg-type]
                     "location": "Boston, MA",
                     "temperature": int(event.event_obj.temperature),
                     "unit": "fahrenheit",
@@ -212,5 +210,5 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner()
     try:
         runner.run(suite)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         ipdb.post_mortem()

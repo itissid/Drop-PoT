@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from drop_backend.types.base import CreatorBase
 
 
+# pylint: disable=invalid-name
 class Unit(enum.Enum):
     celsius = "celsius"
     fahrenheit = "fahrenheit"
@@ -19,7 +20,7 @@ class WeatherEvent(BaseModel, CreatorBase):
     unit: Unit
 
     @classmethod
-    def create(cls, function_name: str, **kwargs):
+    def create(cls, function_name: str, **kwargs):  # type: ignore[override]
         if function_name == cls.default_fn_name():
             #     weather_info = {
             #         "location": location,
@@ -34,9 +35,9 @@ class WeatherEvent(BaseModel, CreatorBase):
             )
 
     @classmethod
-    def default_fn_name(cls) -> str:
+    def default_fn_name(cls) -> str:  # type: ignore[override]
         return "get_current_weather"
-    
+
     def __eq__(self, other):
         if not other:
             return False

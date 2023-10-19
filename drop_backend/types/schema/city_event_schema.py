@@ -197,7 +197,6 @@ from drop_backend.model.ai_conv_types import (
 
 def city_event_function_call_param() -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
     json_schema_city_event = city_event_json_schema()
-    print('.')
     params = {"parameters": json.loads(json_schema_city_event)}
     return (
         [

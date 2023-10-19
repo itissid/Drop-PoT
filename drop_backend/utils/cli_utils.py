@@ -5,15 +5,13 @@ from abc import ABC, ABCMeta
 from typing import Any, Dict, List, NewType, Optional, Union, cast
 
 import click
-import colorama
+import colorama  # type: ignore
 import typer
 from colorama import Fore
 
 app = typer.Typer()
 
 logger = logging.getLogger(__name__)
-
-
 
 
 class CustomDict:
@@ -32,7 +30,9 @@ class CustomDictParser(click.ParamType):
 
 
 def edit_dict(
-    data: Dict[str, Optional[Union[str, int, float, List[Union[str, int, float]]]]]
+    data: Dict[
+        str, Optional[Union[str, int, float, List[Union[str, int, float]]]]
+    ]
 ):
     """
     Given a data dictionary, ask the user if they want to edit any value of the dictionary.
@@ -47,7 +47,7 @@ def edit_dict(
         Given a string val, return the appropriate type after converting it to one of: float, int, str, List[Union[float, int, str]]
         If val has , then assume its a list else try converting it to float, int, str in that order.
         """
-        if ',' in val:
+        if "," in val:
             return [_infer_to_type(i.strip()) for i in val.split(",")]
         else:
             if val.isdigit():
@@ -73,7 +73,8 @@ def edit_dict(
         )
 
         typer.echo(
-            "Enter the new value; for list types enter a CSV List without braces [ ] (or 'exit' to finish):")
+            "Enter the new value; for list types enter a CSV List without braces [ ] (or 'exit' to finish):"
+        )
         try:
             value_before = cast(Union[str, int, float], value_before)
         except ValueError as e:
@@ -92,8 +93,7 @@ def edit_dict(
         else:
             _edit_dict = {key: value_after}
             typer.echo(
-                _optionally_format_colorama(
-                    "New Dictionary:", True, Fore.GREEN)
+                _optionally_format_colorama("New Dictionary:", True, Fore.GREEN)
             )
             _pp(data | _edit_dict)
             data[key] = value_after
@@ -138,7 +138,7 @@ def test_edit_dict():
         "key4": ["a", "b"],
         "key5": 1.02,
     }
-    edited_data, edited_dict = edit_dict(data)
+    edited_data, edited_dict = edit_dict(data)  # type: ignore
     typer.echo("Edited dictionary:")
     typer.echo(edited_data)
     typer.echo("Edit record:")
@@ -150,19 +150,33 @@ def go_autopilot() -> bool:
     Use typer to ask a user to choose between autopilot or manual mode.
     If autopilot return truue
     """
-    return get_user_option("Would you like to use the autopilot or manual mode? (autopilot/manual)",
-                           ["autopilot", "manual"], "autopilot") == "autopilot"
+    return (
+        get_user_option(
+            "Would you like to use the autopilot or manual mode? (autopilot/manual)",
+            ["autopilot", "manual"],
+            "autopilot",
+        )
+        == "autopilot"
+    )
 
 
 def would_you_like_to_continue() -> bool:
-    return get_user_option("Would you like to continue or exit? (yes/exit)", ["yes", "exit"], "exit") == "yes"
+    return (
+        get_user_option(
+            "Would you like to continue or exit? (yes/exit)",
+            ["yes", "exit"],
+            "exit",
+        )
+        == "yes"
+    )
 
 
 def get_user_option(prompt: str, options: list, default: str) -> str:
     user_option = typer.prompt(prompt, default=default)
     while user_option.lower() not in options:
         typer.echo(
-            f"Invalid input. Please enter one of the following options: {', '.join(options)}.")
+            f"Invalid input. Please enter one of the following options: {', '.join(options)}."
+        )
         user_option = typer.prompt(prompt)
     return user_option.lower()
 
@@ -242,8 +256,7 @@ def validate_url_file_suggestions(
             user_input = typer.prompt("Your choice")
 
             while user_input not in file_names and user_input != "d":
-                typer.echo(
-                    "Invalid input. Please enter 'a', 'b', 'c', or 'd'.")
+                typer.echo("Invalid input. Please enter 'a', 'b', 'c', or 'd'.")
                 user_input = typer.prompt("Your choice")
 
             if user_input in file_names:
@@ -295,4 +308,3 @@ def choose_file(json_data: str) -> Dict[str, str]:
 
 if __name__ == "__main__":
     app()
-    

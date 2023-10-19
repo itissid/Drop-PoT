@@ -1,9 +1,8 @@
 import logging
-from dataclasses import asdict
 from typing import Optional
 
 import typer
-from colorama import Fore
+from colorama import Fore  # type: ignore
 
 from ..model.ai_conv_types import (
     EventNode,

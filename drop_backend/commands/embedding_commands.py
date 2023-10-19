@@ -2,7 +2,7 @@ import json
 import logging
 from dataclasses import asdict
 from enum import Enum
-from typing import Set, cast
+from typing import cast
 
 import typer
 from colorama import Fore
