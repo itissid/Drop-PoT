@@ -1,20 +1,19 @@
 # Entry point for all commands. Set up things here like DB, logging or whatever.
 import logging
+from pathlib import Path
 from typing import List
 
 import click
 import typer
 
-from pathlib import Path
+from ..model.merge_base import bind_engine 
 from ..lib.config_generator import check_should_update_schema
 from ..lib.config_generator import gen_schema as gen_schema_impl
 from ..lib.config_generator import generate_function_call_param_function
-from ..model.merge_base import combined_meta_data
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
 from .mood_commands import generate_and_index_event_moods
 
-# from . import mood_commands
 
 app = typer.Typer()
 data_ingestion_commands_app = typer.Typer(name="data-ingestion-commands")
@@ -50,15 +49,35 @@ def setup(
 
         logger.info("Initializing database table")
         validate_database(test_db=test_db)
-        combined_meta_data.create_all(bind=obj["engine"])
+        bind_engine(obj["engine"])
+        # combined_meta_data.create_all(bind=obj["engine"])
 
 
-def index_event_moods(ctx: typer.Context, filename: str, version: str):
-    pass
+def index_event_moods(
+    ctx: typer.Context,
+    filename: str,
+    version: str,
+    cities: List[str] = typer.Option(
+        help="A list of cities in which the events would be contextualized to"
+    ),
+    demographics: List[str] = typer.Option(
+        help=(
+            "A list of demographics in which the events would be contextualized"
+            + "to examples could be like 'Millenials and GenZ'"
+        )
+    ),
+    batch_size: int = typer.Option(default=5, help="Batch size for messages(reduces cost)"),
+):
+    if not cities and not isinstance(cities, list):
+        raise ValueError("Cities are required and must be a list.")
+    if not demographics and not isinstance(demographics, list):
+        raise ValueError("Demographics are required and must be a list.")
+    demo_str = " and ".join(demographics)
+    cities_str = " and ".join(cities)
+    generate_and_index_event_moods(
+        ctx, filename, version, cities_str, demo_str, batch_size  # Millenials and GenZ
+    )
 
-
-#     mood_commands._generate_and_index_event_moods(ctx, filename, version)
-from pathlib import Path
 
 def gen_model_code_bindings(
     type_name: str,
@@ -93,7 +112,7 @@ def gen_model_code_bindings(
     # Now use the event_node_manager.EventManager to use the schema as well as the type.
 
 
-# app.add_typer(data_ingestion_commands_app)
+app.add_typer(data_ingestion_commands_app)
 app.add_typer(config_generator_commands)
 data_ingestion_commands_app.command()(index_event_moods)
 config_generator_commands.command()(gen_model_code_bindings)

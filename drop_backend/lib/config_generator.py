@@ -177,7 +177,11 @@ def generate_json_schema(module_prefix: str, type_name: str):
     module_name = camel_to_snake(type_name)
     type_module = importlib.import_module(f"{module_prefix}.{module_name}")
     type_class = getattr(type_module, type_name)
-    json_schema_str = json.dumps(type_class.model_json_schema(), indent=2)
+    json_schema_str = json.dumps(
+        # Use alias only in validation of incoming data: https://docs.pydantic.dev/latest/concepts/fields/#field-aliases
+        type_class.model_json_schema(by_alias=False),
+        indent=2,
+    )
 
     return json_schema_str
 
@@ -205,7 +209,7 @@ def validate_schema(type_name: str, type_module_prefix: str):
             type_class = getattr(type_module, type_name)
 
             # Generate the current schema from the model
-            current_schema = type_class.model_json_schema()
+            current_schema = type_class.model_json_schema(by_alias=False)
 
             # Compare the stored schema with the current schema
             if stored_schema != current_schema:

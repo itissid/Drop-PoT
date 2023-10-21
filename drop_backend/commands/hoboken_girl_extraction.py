@@ -9,40 +9,39 @@ import click
 import typer
 from pydantic import ValidationError
 
-from .commands.embedding_commands import demo_retrieval  # index_events,
-from .commands.embedding_commands import (
+from ..commands.embedding_commands import demo_retrieval  # index_events,
+from ..commands.embedding_commands import (
     index_event_embeddings,
     index_mood_embeddings,
     index_moods,
 )
-from .lib.ai import AIDriver, AltAI, driver_wrapper
-from .lib.db import DB
-from .lib.event_node_manager import EventManager
-from .lib.interrogation import InteractiveInterrogationProtocol
-from .model.ai_conv_types import (
+from ..lib.ai import AIDriver, AltAI, driver_wrapper
+from ..lib.db import DB
+from ..lib.event_node_manager import EventManager
+from ..lib.interrogation import InteractiveInterrogationProtocol
+from ..model.ai_conv_types import (
     EventNode,
     InterrogationProtocol,
     MessageNode,
     Role,
 )
-from .model.mood_model_unsupervised import Base as MoodBase
-from .model.persistence_model import Base as PersistenceBase
-from .model.persistence_model import (
+from ..model.merge_base import bind_engine
+from ..model.persistence_model import (
     add_event,
     get_num_events_by_version_and_filename,
 )
-from .prompts.hoboken_girl_prompt import (
+from ..prompts.hoboken_girl_prompt import (
     base_prompt_hoboken_girl,
     default_parse_event_prompt,
 )
-from .utils.cli_utils import (
+from ..utils.cli_utils import (
     ask_user_helper,
     choose_file,
     would_you_like_to_continue,
 )
-from .utils.color_formatter import ColoredFormatter
-from .utils.db_utils import validate_database
-from .utils.scraping import get_documents
+from ..utils.color_formatter import ColoredFormatter
+from ..utils.db_utils import validate_database
+from ..utils.scraping import get_documents
 
 app = typer.Typer()
 
@@ -65,7 +64,6 @@ logger = logging.getLogger(__name__)
 def setup(
     ctx: typer.Context,
     loglevel: str = typer.Option("INFO", help="Set the log level"),
-    force_initialize_db: bool = False,
     test_db: bool = False,
 ):
     """
@@ -87,58 +85,8 @@ def setup(
 
     obj = click.get_current_context().obj
 
-    if (
-        ctx.invoked_subcommand == "extract-serialize-events"
-        or force_initialize_db
-    ):
-        logger.info("Initializing Drop database")
-        validate_database(test_db=test_db)
-        PersistenceBase.metadata.create_all(bind=obj["engine"])
-    elif ctx.invoked_subcommand == "index-moods":
-        # pylint: disable=import-outside-toplevel,unused-import
-        from .model.mood_model_unsupervised import (
-            MoodJsonTable,
-            SubmoodBasedEmbeddingTextAccessorTable,
-        )
-
-        validate_database(test_db=test_db)
-        MoodBase.metadata.create_all(bind=obj["engine"])
-    elif ctx.invoked_subcommand == "index-events":
-        # pylint: disable=import-outside-toplevel,unused-import
-        from .model.persistence_model import ParsedEventTable
-
-        validate_database(test_db=test_db)
-        PersistenceBase.metadata.create_all(bind=obj["engine"])
-    elif ctx.invoked_subcommand == "index-mood-embeddings":
-        # pylint: disable=import-outside-toplevel,unused-import
-        from .model.mood_model_unsupervised import SubmoodBasedEmbeddingsTable
-
-        validate_database(test_db=test_db)
-        MoodBase.metadata.create_all(bind=obj["engine"])
-    elif ctx.invoked_subcommand == "index-event-embeddings":
-        # pylint: disable=import-outside-toplevel,unused-import
-        from .model.persistence_model import ParsedEventEmbeddingsTable
-
-        validate_database(test_db=test_db)
-        PersistenceBase.metadata.create_all(bind=obj["engine"])
-    elif force_initialize_db:
-        logger.info("Force Initializing Drop database.")
-        validate_database(test_db=test_db)
-        # pylint: disable=import-outside-toplevel,unused-import
-        from .model.persistence_model import (
-            ParsedEventEmbeddingsTable,
-            ParsedEventTable,
-        )
-
-        PersistenceBase.metadata.create_all(bind=obj["engine"])
-        # pylint: disable=import-outside-toplevel
-        from .model.mood_model_unsupervised import (
-            MoodJsonTable,
-            SubmoodBasedEmbeddingsTable,
-            SubmoodBasedEmbeddingTextAccessorTable,
-        )
-
-        MoodBase.metadata.create_all(bind=obj["engine"])
+    validate_database(test_db=test_db)
+    bind_engine(obj["engine"])
 
 
 @app.command()
@@ -351,7 +299,7 @@ def extract_serialize_events(
         system_message,
         ai_driver,
         event_manager,
-        interrogation_callback=InteractiveInterrogationProtocol(),
+        interrogation_protocol=InteractiveInterrogationProtocol(),
     )
     for i, (event, error) in enumerate(driver_wrapper_gen):
         if error:
@@ -413,7 +361,7 @@ def hoboken_girl_driver_wrapper(
     system_message: MessageNode,
     ai_driver: AIDriver,
     event_manager: EventManager,
-    interrogation_callback: Optional[InterrogationProtocol] = None,
+    interrogation_protocol: Optional[InterrogationProtocol] = None,
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
     driver_gen = driver_wrapper(
         events,
@@ -423,7 +371,7 @@ def hoboken_girl_driver_wrapper(
             event=event_node.raw_event_str
         ),
         event_manager=event_manager,
-        interrogation_callback=interrogation_callback,
+        interrogation_protocol=interrogation_protocol,
     )
     for event, error in driver_gen:
         if isinstance(event, EventNode):

@@ -5,8 +5,8 @@ from enum import Enum
 from typing import cast
 
 import typer
-from colorama import Fore
-from datasette_faiss import encode
+from colorama import Fore # type: ignore
+from datasette_faiss import encode # type: ignore
 
 from ..lib.ai import EmbeddingSearch
 from ..model.mood_model_unsupervised import (

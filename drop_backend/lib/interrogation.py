@@ -39,7 +39,7 @@ class InteractiveInterrogationProtocol(InterrogationProtocol):
         then print the function call result and ask the user if they want to amend it
         """
         if not event.history:
-            logger.warn("No event history found!")
+            logger.warning("No event history found!")
             return None
         if self._autopilot:
             typer.echo(
@@ -52,7 +52,7 @@ class InteractiveInterrogationProtocol(InterrogationProtocol):
             and last_message.ai_function_call_result
         ):
             typer.echo(
-                f"AI function call result: {last_message.ai_function_call}"
+                f"AI function call result: {last_message.ai_function_call_result}"
             )
             if event.event_obj:
                 typer.echo(
@@ -74,10 +74,20 @@ class InteractiveInterrogationProtocol(InterrogationProtocol):
             typer.echo(f"{last_message.role}: {last_message.message_content}")
         should_amend = self._ask_user_should_ai_amend()
         if should_amend:
+            should_call_ai_again = get_user_option(
+                "Do you want AI to recall the function again(yes, no)?",
+                options=["yes", "no"],
+                default="no",
+            )
             return MessageNode(
                 role=Role.user,
                 message_content=self._interrogation,
-                metadata={"is_interrogation": True},
+                metadata={
+                    "is_interrogation": True,
+                    "should_call_ai_again": True
+                    if should_call_ai_again == "yes"
+                    else False,
+                },
             )
         return None
 

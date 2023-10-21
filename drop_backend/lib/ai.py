@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import traceback
 import logging
 from typing import (
     Any,
@@ -91,7 +92,7 @@ class AIDriver:
         self, events: List[str]
     ) -> Generator[
         EventNode | ValidationError | MessageNode,
-        List[MessageNode] | MessageNode,
+        List[MessageNode],
         Literal["Done"],
     ]:
         # Event <--1--*--> Message
@@ -110,27 +111,28 @@ class AIDriver:
                 try:
                     msg_from_ai = self._ai.send(context)
                 except ValidationError as exc:
+                    stack_trace = traceback.format_exc()
                     logger.error(
-                        "Pydantic validation error in sending message to AI: %s ",
+                        "Pydantic validation error in sending message to AI: %s.\n Trace: %s",
                         exc.json(),
+                        stack_trace
                     )
-                    # TODO: Test me
                     yield exc
                     break
                 context.append(msg_from_ai)
 
                 # Possible interrogation follows the Himan in loop interation
-                interrogative_message = yield msg_from_ai
-                if interrogative_message is None:
+                interrogative_messages = yield msg_from_ai
+                if interrogative_messages is None:
                     # We don't want to interrogate the AI for this message, so we break.
                     # print('....')
                     break
                 else:
                     assert (
-                        isinstance(interrogative_message, MessageNode)
-                        and interrogative_message.role == Role.user
+                        isinstance(interrogative_messages[-1], MessageNode)
+                        and interrogative_messages[-1].role == Role.user
                     )
-                    user_message_nodes = [interrogative_message]
+                    user_message_nodes = interrogative_messages
         return "Done"
 
 
@@ -145,7 +147,7 @@ def driver_wrapper(
     # The callback that can given an EventNode give you the raw string
     # message content used in user messages to the AI.
     user_message_prompt_fn: Callable[[EventNode], str],
-    interrogation_callback: Optional[InterrogationProtocol] = None,
+    interrogation_protocol: Optional[InterrogationProtocol] = None,
 ) -> Generator[Tuple[EventNode, Optional[ValidationError]], None, None]:
     """
     # TODO: Probably make this part of the AIDriver class, since its tightly coupled to that.
@@ -205,16 +207,47 @@ def driver_wrapper(
                     )
                 # hook to interact with anything
                 # Human interaction with AI for debugging, AI Agents what have you.
-                if interrogation_callback is not None:
+                if interrogation_protocol is not None:
                     interrogation_message = (
-                        interrogation_callback.get_interrogation_message(
+                        interrogation_protocol.get_interrogation_message(
                             event_node
                         )
                     )
                     while interrogation_message is not None:
-                        assert interrogation_message.role == Role.user
-                        ai_message = driver_gen.send(
+                        interrogation_subcontext_to_ai: List[MessageNode] = []
+                        if event_node.history[-1].role == Role.function:
+                            interrogation_subcontext_to_ai.append(
+                                event_node.history[-1]
+                            )
+                        interrogation_subcontext_to_ai.append(
                             interrogation_message
+                        )
+                        assert interrogation_message.role == Role.user
+                        if interrogation_message.metadata:
+                            if (
+                                interrogation_message.metadata.get(
+                                    "should_call_ai_again", None
+                                )
+                                is True
+                            ):
+                                interrogation_message.functions = (
+                                    message_function_call_spec
+                                )
+                                interrogation_message.explicit_fn_call = (
+                                    explicit_fn_call
+                                )
+
+                            elif (
+                                interrogation_message.metadata.get(
+                                    "should_call_ai_again", None
+                                )
+                                is False
+                            ):
+                                interrogation_message.functions = None
+                                interrogation_message.explicit_fn_call = None
+
+                        ai_message = driver_gen.send(
+                            interrogation_subcontext_to_ai
                         )  # type: ignore
                         assert (
                             isinstance(ai_message, MessageNode)
@@ -229,7 +262,7 @@ def driver_wrapper(
                             event_manager,
                         )
                         interrogation_message = (
-                            interrogation_callback.get_interrogation_message(
+                            interrogation_protocol.get_interrogation_message(
                                 event_node
                             )
                         )
@@ -424,6 +457,7 @@ def _chat_function_call_from_response(
         except Exception as exc:
             logger.error("Error %s for chunk: %s", chunk, exc)
             raise exc
+    logger.debug("Chat: %s", chat)
     return chat, func_call
 
 

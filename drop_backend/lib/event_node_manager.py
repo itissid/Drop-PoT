@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class BaseEventManager(ABC):
     """
-    We can create any kind of function call
+    We can create any kind of function call by overloading the below abstract methods.
     """
 
     def create_event_node(self, raw_event_str: str) -> EventNode:
@@ -147,14 +147,13 @@ class EventManager(BaseEventManager):
         ):
             return [], {}
         return [], ai_message.ai_function_call.arguments
-
+        
     def should_call_function(self, ai_message: MessageNode) -> bool:
         fn_name = self.extract_fn_name(ai_message=ai_message)
         if fn_name:
             return True
-        else:
-            logger.debug("No AI function calling requested")
-            return False
+        logger.debug("No AI function calling requested")
+        return False
 
     def call_fn_by_name(self, fn_name: str, *args, **kwargs) -> Tuple[Any, str]:
         evt_obj_type = cast(CreatorBase, self._event_obj_type)

@@ -21,12 +21,11 @@ from sqlalchemy import (
     UniqueConstraint,
     and_,
 )
-from sqlalchemy.ext.declarative import declarative_base
+from .merge_base import Base
 from sqlalchemy.orm import sessionmaker
 
 from .mood_seed import GEN_Z, GEN_Z_HOBOKEN, GEN_Z_NYC, MILLENIALS
 
-Base = declarative_base()
 logger = logging.getLogger(__name__)
 
 

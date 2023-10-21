@@ -42,7 +42,7 @@ class TestAIDriver(unittest.TestCase):
             self.create_driver_instance(mocked_altai_class, event_manager),
             event_manager=event_manager,
             user_message_prompt_fn=mock_event_formatter_fn,
-            interrogation_callback=interrogation_callback,
+            interrogation_protocol=interrogation_callback,
         )
 
     def assert_message_node(self, result_msg_node, expected_msg_node):

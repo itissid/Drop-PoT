@@ -2,7 +2,6 @@
 Models used for abstracting away data operations.
 """
 import logging
-from dataclasses import asdict
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel
@@ -19,16 +18,17 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.declarative import declarative_base
+# from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import UniqueConstraint
 
 from ..utils.db_utils import session_manager
 from .ai_conv_types import MessageNode
+from .merge_base import Base
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
+# Base = declarative_base()
 
 
 class ParsedEventTable(Base):  # type: ignore
@@ -55,6 +55,9 @@ class ParsedEventTable(Base):  # type: ignore
     )
     geo_addresses = relationship(  # type: ignore
         "GeoAddresses", back_populates="related_parsed_events"
+    )
+    sub_mood_event = relationship(
+        "SubMoodEventTable", back_populates="parsed_events", uselist=False
     )
 
 

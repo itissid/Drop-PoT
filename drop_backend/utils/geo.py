@@ -15,7 +15,6 @@ from ..model.persistence_model import (
     add_geoaddress,
     get_parsed_events,
 )
-from ..model.types import Event
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
 
@@ -155,7 +154,7 @@ def coordinates_from_event_addresses(
     ctx: typer.Context, filename: str, version: str
 ) -> None:
     parsed_events = get_parsed_events(
-        engine=ctx.obj["engine"],
+        ctx.obj["engine"],
         filename=filename,
         version=version,
         columns=[

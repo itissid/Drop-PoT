@@ -26,7 +26,7 @@ about and doing stuff in your local neighborhood from textual event data; I will
 
 Here are more specific instructions you are to follow for generating moods and submoods:
 
-0. I define Mood as primarily an "emotional" need/state that one feels and not necessarily a verb or an action. It is more organic, catchy and is embedded in popular culture.
+0. I define Mood as primarily an "emotional" need/state that one feels and not necessarily an action or a specific. It is more organic, catchy and is embedded in popular culture.
 1. In the data that I will provide there will be a sample of events from a "cluster" of events that are "similar" and generated using {algorithm_name} algo.  Use ONLY this data to generate the Moods and Submoods.
 
 2. The SubMoods are more specific than the encompassing Mood and are also heirarchically grouped within the Mood.
