@@ -15,6 +15,7 @@ from ..model.persistence_model import (
     add_geoaddress,
     get_parsed_events,
 )
+from ..types.city_event import CityEvent
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
 
@@ -54,9 +55,6 @@ def setup(
     for handler in root_logger.handlers:
         handler.setFormatter(colored_formatter)
     if ctx.invoked_subcommand == "coordinates-from-event-addresses":
-        # pylint: disable=import-outside-toplevel,unused-import
-        from main.model.persistence_model import GeoAddresses
-
         logger.info("Initializing database table")
         validate_database(test_db=test_db)
         PersistenceBase.metadata.create_all(bind=obj["engine"])
@@ -71,7 +69,9 @@ class HTTPException(Exception):
 
 
 # N2S: If we use a public nominatim server, add waiting between requests
-def get_coordinates(params: Dict[str, str]) -> Optional[Tuple[float, float]]:
+def get_coordinates(
+    params: Dict[str, str]
+) -> Tuple[Optional[float], Optional[float]]:
     # URL of your local Nominatim server
 
     # Make the API request
@@ -141,12 +141,17 @@ def ask(address, alt_ai: AltAI) -> MessageNode:
 def _try_format_address_with_ai(address: str) -> Optional[Dict[str, str]]:
     alt_ai = AltAI()
     ai_message = ask(address, alt_ai)
-    address_str = ai_message.message_content.replace("```", "")
+    address_str = (
+        ai_message.message_content.replace("```", "")
+        if ai_message.message_content
+        else None
+    )
     if address_str:
         address_json = json.loads(address_str)
         return address_json
     else:
         logger.warning("Got no response from ai for %s", address)
+    return None
 
 
 @app.command()
@@ -166,7 +171,7 @@ def coordinates_from_event_addresses(
     )
 
     for event in parsed_events:
-        event_obj = Event(
+        event_obj = CityEvent(
             **{
                 **event.event_json,
                 **dict(name=event.name, description=event.description),
@@ -182,7 +187,12 @@ def coordinates_from_event_addresses(
                 lat, long = get_coordinates(params={"q": address})
                 if lat is None or long is None:
                     json_address = _try_format_address_with_ai(address)
-                    lat, long = get_coordinates(json_address)
+                    if json_address:
+                        lat, long = get_coordinates(json_address)
+                    else:
+                        raise Exception(
+                            f"Failed to get coordinates from AI as well for adddress {address}!"
+                        )
             except Exception as exc:  #  pylint: disable=broad-exception-caught
                 logger.warning(
                     "Failed to get coordinates for %s due to an error %s. Logging this as in the database for event id %d",

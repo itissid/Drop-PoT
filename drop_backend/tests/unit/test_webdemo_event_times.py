@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime
 
 from drop_backend.model.persistence_model import should_include_event
-from drop_backend.webdemo.backend.app.custom_types import When
+from drop_backend.types.custom_types import When
 
 
 class TestShouldIncludeEvent(unittest.TestCase):

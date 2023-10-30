@@ -66,12 +66,16 @@ from drop_backend.model.ai_conv_types import (
     EventNode,
     MessageNode,
     OpenAIFunctionCallSpec,
-    UserExplicitFunctionCall,
     Role,
+    UserExplicitFunctionCall,
 )
 
 
 class TestMessageNode(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.maxDiff = None
+
     def test_scenario_1(self):
         input_messages = [
             MessageNode(
@@ -103,7 +107,9 @@ class TestMessageNode(unittest.TestCase):
                         }
                     )
                 ],
-                explicit_fn_call=UserExplicitFunctionCall(**{"name": "get_current_weather"}),
+                explicit_fn_call=UserExplicitFunctionCall(
+                    **{"name": "get_current_weather"}
+                ),
             ),
         ]
 
@@ -135,7 +141,7 @@ class TestMessageNode(unittest.TestCase):
                         },
                     }
                 ],
-                "explicit_fn_call": UserExplicitFunctionCall(**{"name": "get_current_weather"}),
+                "explicit_fn_call": {"name": "get_current_weather"},
             },
         ]
         self._run_test(input_messages, expected_output)
@@ -153,7 +159,7 @@ class TestMessageNode(unittest.TestCase):
                 message_content="What's the weather like in Boston?",
                 functions=[
                     OpenAIFunctionCallSpec(
-                        **{ # type: ignore
+                        **{  # type: ignore
                             "name": "get_current_weather",
                             "description": "Get weather",
                             "parameters": {
@@ -173,13 +179,15 @@ class TestMessageNode(unittest.TestCase):
                         }
                     )
                 ],
-                explicit_fn_call=UserExplicitFunctionCall(**{"name": "get_current_weather"}),
+                explicit_fn_call=UserExplicitFunctionCall(
+                    **{"name": "get_current_weather"}
+                ),
             ),
             MessageNode(
                 role=Role.assistant,
                 ai_function_call=AIFunctionCall(
                     name="get_current_weather",
-                    arguments=json.dumps( # type: ignore
+                    arguments=json.dumps(  # type: ignore
                         {"location": "Boston, MA", "unit": "fahrenheit"}
                     ),
                 ),
@@ -203,7 +211,7 @@ class TestMessageNode(unittest.TestCase):
                 message_content="What's the weather like in Boston?",
                 functions=[
                     OpenAIFunctionCallSpec(
-                        **{ # type: ignore
+                        **{  # type: ignore
                             "name": "get_current_weather",
                             "description": "Get weather",
                             "parameters": {
@@ -223,13 +231,13 @@ class TestMessageNode(unittest.TestCase):
                         }
                     )
                 ],
-                explicit_fn_call={"name": "get_current_weather"}, # type: ignore
+                explicit_fn_call={"name": "get_current_weather"},  # type: ignore
             ),
             MessageNode(
                 role=Role.assistant,
                 ai_function_call=AIFunctionCall(
                     name="get_current_weather",
-                    arguments=json.dumps( # type: ignore
+                    arguments=json.dumps(  # type: ignore
                         {"location": "Boston, MA", "unit": "fahrenheit"}
                     ),
                 ),
@@ -295,7 +303,7 @@ class TestMessageNode(unittest.TestCase):
                 message_content="What's the weather like in Boston?",
                 functions=[
                     OpenAIFunctionCallSpec(
-                        **{ # type: ignore
+                        **{  # type: ignore
                             "name": "get_current_weather",
                             "description": "Get weather",
                             "parameters": {
@@ -315,13 +323,15 @@ class TestMessageNode(unittest.TestCase):
                         }
                     )
                 ],
-                explicit_fn_call=UserExplicitFunctionCall(**{"name": "get_current_weather"}),
+                explicit_fn_call=UserExplicitFunctionCall(
+                    **{"name": "get_current_weather"}
+                ),
             ),
             MessageNode(
                 role=Role.assistant,
                 ai_function_call=AIFunctionCall(
                     name="get_current_weather",
-                    arguments=json.dumps( # type: ignore
+                    arguments=json.dumps(  # type: ignore
                         {"location": "Boston, MA", "unit": "fahrenheit"}
                     ),
                 ),

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional, Union
-from .ors import TransitDirectionSummary, TransitDirectionError
+from .ors import TransitDirectionSummary
 
 def format_event_summary(
     event_data: dict,

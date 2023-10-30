@@ -33,7 +33,7 @@ class BaseEventManager(ABC):
     @abstractmethod
     def get_function_call_spec(
         self,
-    ) -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
+    ) -> Tuple[Optional[List[OpenAIFunctionCallSpec]], Optional[UserExplicitFunctionCall]]:
         ...
 
     @abstractmethod
@@ -129,7 +129,7 @@ class EventManager(BaseEventManager):
 
     def get_function_call_spec(
         self,
-    ) -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
+    ) -> Tuple[Optional[List[OpenAIFunctionCallSpec]], Optional[UserExplicitFunctionCall]]:
         # from code gen'ned module
         return self._function_call_spec()
 

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
+import typer
 from sqlalchemy.engine import Engine
 
 from ..model.persistence_model import (
@@ -42,12 +43,15 @@ class _DedupedEvent:
 @dataclass
 class TaggedEvent:
     event: _DedupedEvent
-    directions: List[
-        Tuple[
-            Dict[
-                Profile, Union[TransitDirectionSummary, TransitDirectionError]
-            ],
-            str,
+    directions: Optional[
+        List[
+            Tuple[
+                Dict[
+                    Profile,
+                    Union[TransitDirectionSummary, TransitDirectionError],
+                ],
+                str,
+            ]
         ]
     ]
 
@@ -151,7 +155,19 @@ def geotag_moodtag_events_helper(
             cast(Dict[str, Any], event.event_json),
         ):
             # N2S: Could be lazy loaded by the web framework if found to be slow.
-            directions = None
+            directions: Optional[
+                list[
+                    tuple[
+                        Dict[
+                            Profile,
+                            Union[
+                                TransitDirectionSummary, TransitDirectionError
+                            ],
+                        ],
+                        str,
+                    ]
+                ]
+            ] = None
             try:
                 directions = get_transit_distance_duration_wrapper(
                     where_lat, where_lon, event.geo_dict
@@ -160,10 +176,8 @@ def geotag_moodtag_events_helper(
                 logger.exception(exc)
             filtered_events.append(
                 TaggedEvent(
-                    **{
-                        "event": event,
-                        "directions": directions,
-                    }
+                    event,
+                    directions,
                 )
             )
 

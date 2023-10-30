@@ -29,8 +29,8 @@ from .fixtures.schema.weather_event_schema import (
 class NoFunctionCallEventManager(BaseEventManager):
     def get_function_call_spec(
         self,
-    ) -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
-        return [], {}
+    ):
+        return None, None
 
     def extract_fn_name(self, ai_message: MessageNode) -> Optional[str]:
         return None

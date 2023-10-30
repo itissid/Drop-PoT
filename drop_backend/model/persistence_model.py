@@ -68,6 +68,9 @@ class GeoAddresses(Base):  # type: ignore
     id = Column(Integer, primary_key=True)
     parsed_event_id = Column(Integer, ForeignKey("parsed_events.id"))
     address = Column(String, nullable=False)
+    # N2S: In hindsight it might not be a bad idea to use a fixed precision number
+    # for latitude and longitude using something like: DECIMAL(10,5)
+    # Maybe then I could have cached them easily as well.
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     failure_reason = Column(String, nullable=True)
@@ -89,8 +92,8 @@ def add_geoaddress(
         geo_address = GeoAddresses(
             parsed_event_id=parsed_event_id,
             address=address,
-            latitude=latitude,
-            longitude=longitude,
+            latitude=latitude,  # type: ignore
+            longitude=longitude,  # type: ignore
             failure_reason=failure_reason,
         )
         session.add(geo_address)
@@ -499,7 +502,7 @@ def insert_parsed_event_embeddings(session, events: List[Dict[str, str]]):
     # Query the database for the given column with the given version and filename
     embedding_lst = []
     for event in events:
-        parsed_event_embedding = ParsedEventEmbeddingsTable(
+        parsed_event_embedding = ParsedEventEmbeddingsTable(  # type: ignore
             embedding=event["embedding"],
             embedding_type=event["embedding_type"],
             embedding_version=event["embedding_version"],

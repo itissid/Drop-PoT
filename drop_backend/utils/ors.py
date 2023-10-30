@@ -65,12 +65,17 @@ def get_transit_distance_duration_wrapper(
     source_lat, source_lon, geo_dict: dict[str, GeoLocation]
 ):
     def _fn(
-        direction: Dict[Profile, Union[TransitDirectionSummary, TransitDirectionError]], _: str
+        direction: Dict[
+            Profile, Union[TransitDirectionSummary, TransitDirectionError]
+        ],
+        _: str,
     ):
         if Profile.foot_walking in direction:
-            if isinstance(direction[Profile.foot_walking], TransitDirectionError):
+            foot_walking_dir = direction[Profile.foot_walking]
+            if isinstance(foot_walking_dir, TransitDirectionError):
                 return 1e12
-            return direction[Profile.foot_walking].duration
+            assert isinstance(foot_walking_dir, TransitDirectionSummary)
+            return foot_walking_dir.duration
         return 1e12
 
     return sorted(
@@ -118,11 +123,9 @@ def get_transit_distance_duration(
                     response.text
                 )
                 directions[profile] = TransitDirectionSummary(
-                    **{
-                        "distance": response_data.routes[0].summary.distance,
-                        "duration": response_data.routes[0].summary.duration,
-                        "units": {"distance": "meters", "duration": "seconds"},
-                    }
+                    response_data.routes[0].summary.distance,
+                    response_data.routes[0].summary.duration,
+                    Units("meters", "seconds"),
                 )
             except ValidationError as ex:
                 logger.exception(
@@ -135,10 +138,8 @@ def get_transit_distance_duration(
             try:
                 error_data = ErrorResponse.model_validate(response.json())
                 directions[profile] = TransitDirectionError(
-                    **{
-                        "code": error_data.error.code,
-                        "message": error_data.error.message,
-                    }
+                    error_data.error.code,
+                    error_data.error.message,
                 )
             except ValidationError as ex:
                 logger.exception(

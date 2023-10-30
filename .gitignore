@@ -32,3 +32,4 @@ examples/*
 drop_backend/utils/ai_adhoc.py
 drop_backend/utils/scratch.py
 geodata/
+**/.DS_Store
