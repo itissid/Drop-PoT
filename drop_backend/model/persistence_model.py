@@ -17,15 +17,13 @@ from sqlalchemy import (
     String,
     Text,
     func,
-    join,
 )
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.schema import UniqueConstraint
 
+from ..types.custom_types import When
 from ..utils.db_utils import session_manager
-from ..utils.ors import get_walking_distance_duration
-from ..webdemo.backend.app.custom_types import When
 from .ai_conv_types import MessageNode
 from .merge_base import Base
 from .mood_model_supervised import MoodSubmoodTable, SubMoodEventTable
@@ -370,6 +368,7 @@ def should_include_event(
     now_window: int,
     event_json: Dict[str, Any],
 ) -> bool:
+    # TODO: accomodate for repetitive events.
     # Check if the event is marked as ongoing
 
     # Get date and time fields from event_json

@@ -13,8 +13,7 @@ from ..lib.config_generator import generate_function_call_param_function
 from ..model.merge_base import bind_engine
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
-from ..utils.ors import get_transit_distance_duration
-from ..webdemo.backend.app.custom_types import When
+from ..types.custom_types import When
 from .mood_commands import generate_and_index_event_moods
 from .webdemo_command_helper import geotag_moodtag_events_helper
 
@@ -47,7 +46,7 @@ def setup(
 
     if (
         ctx.invoked_subcommand
-        in set(["index-event-moods", "test-webdemo-get-events"])
+        in set(["index-event-moods", "geotag-moodtag-events"])
         or force_initialize_db
     ):
         # pylint: disable=import-outside-toplevel,unused-import
