@@ -1,29 +1,30 @@
 # Entry point for all commands. Set up things here like DB, logging or whatever.
 import logging
+from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import click
 import typer
 
-from ..model.merge_base import bind_engine 
 from ..lib.config_generator import check_should_update_schema
 from ..lib.config_generator import gen_schema as gen_schema_impl
 from ..lib.config_generator import generate_function_call_param_function
+from ..model.merge_base import bind_engine
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
+from ..utils.ors import get_transit_distance_duration
+from ..webdemo.backend.app.custom_types import When
 from .mood_commands import generate_and_index_event_moods
-
+from .webdemo_command_helper import geotag_moodtag_events_helper
 
 app = typer.Typer()
-data_ingestion_commands_app = typer.Typer(name="data-ingestion-commands")
 config_generator_commands = typer.Typer(name="config-generator-commands")
 LOG_FORMAT = "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
 
 logger = logging.getLogger(__name__)
 
 
-@data_ingestion_commands_app.callback()
 def setup(
     ctx: typer.Context,
     loglevel: str = typer.Option("INFO", help="Set the log level"),
@@ -44,13 +45,16 @@ def setup(
     click.get_current_context().obj = {}
     obj = click.get_current_context().obj
 
-    if ctx.invoked_subcommand == "index-event-moods" or force_initialize_db:
+    if (
+        ctx.invoked_subcommand
+        in set(["index-event-moods", "test-webdemo-get-events"])
+        or force_initialize_db
+    ):
         # pylint: disable=import-outside-toplevel,unused-import
 
         logger.info("Initializing database table")
         validate_database(test_db=test_db)
         bind_engine(obj["engine"])
-        # combined_meta_data.create_all(bind=obj["engine"])
 
 
 def index_event_moods(
@@ -66,7 +70,9 @@ def index_event_moods(
             + "to examples could be like 'Millenials and GenZ'"
         )
     ),
-    batch_size: int = typer.Option(default=5, help="Batch size for messages(reduces cost)"),
+    batch_size: int = typer.Option(
+        default=5, help="Batch size for messages(reduces cost)"
+    ),
 ):
     if not cities and not isinstance(cities, list):
         raise ValueError("Cities are required and must be a list.")
@@ -75,7 +81,12 @@ def index_event_moods(
     demo_str = " and ".join(demographics)
     cities_str = " and ".join(cities)
     generate_and_index_event_moods(
-        ctx, filename, version, cities_str, demo_str, batch_size  # Millenials and GenZ
+        ctx,
+        filename,
+        version,
+        cities_str,
+        demo_str,
+        batch_size,  # Millenials and GenZ
     )
 
 
@@ -112,10 +123,41 @@ def gen_model_code_bindings(
     # Now use the event_node_manager.EventManager to use the schema as well as the type.
 
 
+def geotag_moodtag_events(  # pylint: disable=too-many-arguments,too-many-locals
+    ctx: typer.Context,
+    filename: str,
+    version: str,
+    where_lat: float,
+    where_lon: float,
+    when: When = When.NOW,
+    now_window_hours: int = 1,
+    stubbed_now: Optional[datetime] = None,
+):
+    datetime_now = stubbed_now or datetime.now()
+    return geotag_moodtag_events_helper(
+        ctx.obj["engine"],
+        filename,
+        version,
+        where_lat,
+        where_lon,
+        datetime_now,
+        when,
+        now_window_hours,
+    )
+
+
+data_ingestion_commands_app = typer.Typer(
+    name="data-ingestion-commands", callback=setup
+)
 app.add_typer(data_ingestion_commands_app)
 app.add_typer(config_generator_commands)
+webdemo_adhoc_commands = typer.Typer(
+    name="webdemo-adhoc-commands", callback=setup
+)
+app.add_typer(webdemo_adhoc_commands)
 data_ingestion_commands_app.command()(index_event_moods)
 config_generator_commands.command()(gen_model_code_bindings)
+webdemo_adhoc_commands.command()(geotag_moodtag_events)
 
 if __name__ == "__main__":
     app()

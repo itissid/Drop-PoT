@@ -2,7 +2,8 @@
 Models used for abstracting away data operations.
 """
 import logging
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 from sqlalchemy import (
@@ -16,15 +17,18 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    join,
 )
 from sqlalchemy.exc import SQLAlchemyError
-# from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy.schema import UniqueConstraint
 
 from ..utils.db_utils import session_manager
+from ..utils.ors import get_walking_distance_duration
+from ..webdemo.backend.app.custom_types import When
 from .ai_conv_types import MessageNode
 from .merge_base import Base
+from .mood_model_supervised import MoodSubmoodTable, SubMoodEventTable
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +58,7 @@ class ParsedEventTable(Base):  # type: ignore
         back_populates="parsed_event",
     )
     geo_addresses = relationship(  # type: ignore
-        "GeoAddresses", back_populates="related_parsed_events"
+        "GeoAddresses", back_populates="parsed_events"
     )
     sub_mood_event = relationship(
         "SubMoodEventTable", back_populates="parsed_events", uselist=False
@@ -69,7 +73,7 @@ class GeoAddresses(Base):  # type: ignore
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     failure_reason = Column(String, nullable=True)
-    related_parsed_events = relationship(  # type: ignore
+    parsed_events = relationship(  # type: ignore
         "ParsedEventTable", back_populates="geo_addresses"
     )
 
@@ -267,6 +271,192 @@ def get_parsed_events(
     parsed_events = query.all()
     # add all parsed_events to a dictionary
     return [e for e in parsed_events]
+
+
+class GeoTaggedMoodTaggedEvents:
+    id: int
+    name: str
+    description: str
+    event_json: Dict[str, Any]
+    latitude: float
+    longitude: float
+    mood: str
+    submood: str
+
+
+@session_manager
+def fetch_events_geocoded_mood_attached(
+    session,
+    filename: str,
+    version: str,
+    columns: Optional[List[Column]] = [],
+) -> List[ParsedEventTable]:
+    """
+    Fetches events from the database based on filename and version,
+    and obtains the latitude and longitude of each event from the GeoAddresses table.
+
+    Parameters:
+    - db (Session): The database session.
+    - filename (str): The filename to filter events on.
+    - version (str): The version to filter events on.
+    - lat (float): Latitude of the reference location.
+    - long (float): Longitude of the reference location.
+
+    Returns:
+    - List[models.ParsedEventTable]: A list of events.
+    """
+    # Build the base query
+    query = (
+        session.query(ParsedEventTable, GeoAddresses, MoodSubmoodTable)
+        .join(GeoAddresses, ParsedEventTable.id == GeoAddresses.parsed_event_id)
+        .join(
+            SubMoodEventTable, ParsedEventTable.id == SubMoodEventTable.event_id
+        )
+        .join(
+            MoodSubmoodTable,
+            SubMoodEventTable.mood_sub_mood_id == MoodSubmoodTable.id,
+        )
+        .filter(ParsedEventTable.filename == filename)
+        .filter(ParsedEventTable.version == version)
+        .filter(GeoAddresses.latitude.isnot(None))
+        .filter(GeoAddresses.longitude.isnot(None))
+    )
+    if columns:
+        query = query.with_entities(*columns)
+
+    # Fetch and return the events
+    events = query.all()
+    return [e for e in events]  # pylint: disable=unnecessary-comprehension
+
+
+def compute_hours_diff(
+    start_date_str: str,
+    end_date_str: str,
+    start_time_str: str,
+    end_time_str: str,
+    datetime_now: datetime,
+):
+    # Default to full day if time is not provided
+    start_time_str = start_time_str or "00:00"
+    end_time_str = end_time_str or "23:59"
+
+    # Combine date and time strings into datetime objects
+    start_datetime_str = f"{start_date_str} {start_time_str}"
+    end_datetime_str = f"{end_date_str} {end_time_str}"
+
+    # Convert to datetime objects
+    start_datetime = datetime.strptime(start_datetime_str, "%Y-%m-%d %H:%M")
+    end_datetime = datetime.strptime(end_datetime_str, "%Y-%m-%d %H:%M")
+
+    # Compute hours difference from datetime_now
+    hours_from_now_start = (
+        start_datetime - datetime_now
+    ).total_seconds() / 3600
+    hours_from_now_end = (end_datetime - datetime_now).total_seconds() / 3600
+    has_already_started = start_datetime <= datetime_now
+    has_already_ended = end_datetime < datetime_now
+
+    return (
+        hours_from_now_start,
+        hours_from_now_end,
+        has_already_started,
+        has_already_ended,
+    )
+
+
+def should_include_event(
+    when: When,
+    datetime_now: datetime,
+    now_window: int,
+    event_json: Dict[str, Any],
+) -> bool:
+    # Check if the event is marked as ongoing
+
+    # Get date and time fields from event_json
+    start_dates = event_json.get("start_date", []) or []
+    end_dates = event_json.get("end_date", []) or []
+    start_times = event_json.get("start_time", []) or []
+    end_times = event_json.get("end_time", []) or []
+
+    if (start_times and not start_dates) or (end_times and not end_dates):
+        # IN valid data?
+        # pylint: disable=logging-not-lazy
+        msg = (
+            f"Invalid data in event_json. Start times and End Times: {start_times}, {end_times}"
+            + f" But end dates and start dates are empty for event: {event_json}"
+        )
+        logger.warning(msg)
+        return False
+
+    # If all date and time fields are null, skip this event
+    if not any([start_dates, end_dates, start_times, end_times]):
+        if event_json.get("is_ongoing", False):
+            if when == When.NOW:
+                return True
+
+        return False
+
+    max_occurrences = max(
+        [len(start_dates), len(end_dates), len(start_times), len(end_times)]
+    )
+    for i in range(max_occurrences):
+        start_date_str = (
+            start_dates[i]
+            if i < len(start_dates)
+            else datetime_now.date().strftime(
+                "%Y-%m-%d"
+            )  # Assume the event starts now if its not mentioned
+        )
+        end_date_str = (
+            end_dates[i] if i < len(end_dates) else start_date_str
+        )  # default to start_date if end_date is not provided
+
+        start_time_str = (
+            start_times[i]
+            if i < len(start_times)
+            else (  # if the event does have a start_date then assume its a full day event starting at 00:00
+                "00:00"
+                if len(start_dates) < i
+                else datetime_now.time().strftime(
+                    "%H:%M"
+                )  # else assume that since there is no event_start it starts at datetime_now, same as start_date
+            )
+        )
+        end_time_str = end_times[i] if i < len(end_times) else "23:59"
+
+        (
+            hours_from_now_start,
+            hours_from_now_end,
+            has_already_started,
+            has_already_ended,
+        ) = compute_hours_diff(
+            start_date_str,
+            end_date_str,
+            start_time_str,
+            end_time_str,
+            datetime_now,
+        )
+
+        if has_already_started and not has_already_ended:
+            if when == When.NOW:
+                return True
+            return False
+
+        if has_already_ended:
+            return False
+
+        if when == When.NOW:
+            condition_now = (hours_from_now_start <= now_window) or (
+                hours_from_now_end >= 0 and hours_from_now_end <= now_window
+            )
+            if condition_now:
+                return True
+        else:  # when == When.LATER
+            condition_later = hours_from_now_start > now_window
+            if condition_later:
+                return True
+
+    return False
 
 
 @session_manager
