@@ -2,7 +2,7 @@
 # Generated code. Don't change this file unless you know what you are doing.
 from drop_backend.lib.config_generator import validate_schema
 
-@validate_schema("WeatherEvent", "drop_backend.tests.integration.fixtures")
+@validate_schema("WeatherEvent", "tests.integration.fixtures")
 def weather_event_json_schema():
     return """{
   "$defs": {
@@ -49,7 +49,6 @@ from drop_backend.model.ai_conv_types import (
 
 def weather_event_function_call_param() -> Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall]:
     json_schema_weather_event = weather_event_json_schema()
-    print('.')
     params = {"parameters": json.loads(json_schema_weather_event)}
     return (
         [

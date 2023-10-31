@@ -23,7 +23,7 @@ name = "drop"
 version = "0.1.0"
 description = "Command line tools for building drop"
 authors = ["Sid <itissid@gmail.com>"]
-packages = [{include = "drop"}]
+packages = [{include = "drop_backend", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"

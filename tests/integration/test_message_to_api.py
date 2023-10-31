@@ -19,7 +19,7 @@ from drop_backend.model.ai_conv_types import (
 # Note: If we don't import the full path then the isinstance(weather_obj,
 # WeatherEvent) returns False in the __eq__ depending on how the weather_obj was
 # created.
-from drop_backend.tests.integration.fixtures.weather_event import WeatherEvent
+from tests.integration.fixtures.weather_event import WeatherEvent
 
 from .fixtures.schema.weather_event_schema import (
     weather_event_function_call_param,
@@ -109,8 +109,8 @@ class TestSendToOpenAIAPI(unittest.TestCase):
         print(", ".join([i for i in sys.modules.keys() if "drop_backend" in i]))
         event_manager = EventManager(
             "WeatherEvent",
-            "drop_backend.tests.integration.fixtures",
-            "drop_backend.tests.integration.fixtures.schema",
+            "tests.integration.fixtures",
+            "tests.integration.fixtures.schema",
         )
 
         # def weather_fn_call_wrapper(ai_message: MessageNode) -> Tuple[Any, str]:

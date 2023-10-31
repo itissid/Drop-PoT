@@ -1,4 +1,12 @@
 # make a pydantic class for the weather example in open ai
+# Use command from the main directlru
+# (drop-py3.9) sid@Sids-MBP:~/workspace/drop$ PYTHONPATH=".:src/:tests/" \
+#       python -m drop_backend.commands config-generator-commands gen-model-code-bindings \
+#       WeatherEvent --schema-directory-prefix tests/integration/fixtures/schema/ \
+#       --type-module-prefix tests.integration.fixtures
+# Note that we need to add src, tests to the PYTHONPATH to make sure that those are
+# discoverable to the config generator code. Like even pytest also relies on the PYTHONPATH in pytest.ini
+# so this is not hackish.
 import enum
 
 from pydantic import BaseModel, ConfigDict
@@ -12,7 +20,6 @@ class Unit(enum.Enum):
     fahrenheit = "fahrenheit"
 
 
-#
 class WeatherEvent(BaseModel, CreatorBase):
     model_config = ConfigDict(extra="forbid")
     location: str
@@ -22,12 +29,6 @@ class WeatherEvent(BaseModel, CreatorBase):
     @classmethod
     def create(cls, function_name: str, **kwargs):  # type: ignore[override]
         if function_name == cls.default_fn_name():
-            #     weather_info = {
-            #         "location": location,
-            #         "temperature": ...,
-            #         "unit": unit,
-            #         "forecast": ["sunny", "windy"],
-            #     }
             return WeatherEvent(**kwargs)
         else:
             raise AttributeError(
