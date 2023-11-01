@@ -63,3 +63,14 @@ print(ta.validate_python(1))
 # --------------------------------------------------------
 
 ```
+
+5. Pylint can only work in the src layout(see `src layout for poetry.md` for details) if it has src in its python path 
+somehow. I set this by using the follwing in settings json for the workspace:
+```
+    "pylint.args": [
+        "--init-hook",
+        "import sys; sys.path.insert(0, '${workspaceFolder:drop}/src')",
+    ]
+```
+I was initially wondering if there is a way to set this for the entire project and surely I also found that a .env file with this can work:
+https://stackoverflow.com/questions/50089498/how-to-set-the-root-directory-for-visual-studio-code-python-extension

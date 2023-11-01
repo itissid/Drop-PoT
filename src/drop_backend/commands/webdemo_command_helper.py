@@ -91,7 +91,6 @@ def geotag_moodtag_events_helper(
         dummy_context = DummyContext()
         dummy_context.obj["engine"] = engine_or_context
     else:
-        import typer  # pylint: disable=import-outside-toplevel
 
         if isinstance(engine_or_context, typer.Context):
             dummy_context: typer.Context = engine_or_context  # type: ignore

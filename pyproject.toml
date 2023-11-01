@@ -26,7 +26,7 @@ authors = ["Sid <itissid@gmail.com>"]
 packages = [{include = "drop_backend", from = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 aiofiles = "23.1.0"
 aiohttp = "3.8.4"
 aiosignal = "1.3.1"

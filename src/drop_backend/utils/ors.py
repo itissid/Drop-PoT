@@ -1,5 +1,6 @@
 import enum
 import logging
+import math
 from dataclasses import dataclass
 from typing import Dict, Union
 
@@ -78,23 +79,94 @@ def get_transit_distance_duration_wrapper(
             return foot_walking_dir.duration
         return 1e12
 
-    return sorted(
-        [
-            (
-                get_transit_distance_duration(
-                    source_lat, source_lon, geoloc.latitude, geoloc.longitude
-                ),
-                address,
+    return_data = []
+
+    def _should_use_fallback_distance(
+        direction: Dict[
+            Profile, Union[TransitDirectionSummary, TransitDirectionError]
+        ]
+    ):
+        # use haversine distance if the error in any one profile has a 999 time out error return true
+        for _, val in direction.items():
+            if isinstance(val, TransitDirectionError) and val.code == 999:
+                return True
+        return False
+
+    should_use_fallback_distance = False  # In case there is a connection error to the service, we should gracefully fallback to haversine distance
+    for address, geoloc in geo_dict.items():
+        val_or_error = get_transit_distance_duration(
+            source_lat,
+            source_lon,
+            geoloc.latitude,
+            geoloc.longitude,
+            should_use_fallback_distance,
+        )
+        if _should_use_fallback_distance(val_or_error):
+            should_use_fallback_distance = True
+            return_data.append(
+                (
+                    get_transit_distance_duration(
+                        source_lat,
+                        source_lon,
+                        geoloc.latitude,
+                        geoloc.longitude,
+                        should_use_fallback_distance,
+                    ),
+                    address,
+                )
             )
-            for address, geoloc in geo_dict.items()
-        ],
+        else:
+            return_data.append((val_or_error, address))
+    return sorted(
+        return_data,
         key=lambda x: _fn(*x),
     )
 
 
+def haversine_distance(coord1, coord2):
+    # Radius of Earth in kilometers
+    R = 6371.0
+
+    # Convert latitude and longitude from degrees to radians
+    lat1, lon1 = math.radians(coord1[0]), math.radians(coord1[1])
+    lat2, lon2 = math.radians(coord2[0]), math.radians(coord2[1])
+
+    # Compute differences in latitude and longitude
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    # Haversine formula
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    # Distance in meters
+    distance = R * c * 1000
+
+    return distance
+
+
 def get_transit_distance_duration(
-    lat1: float, lon1: float, lat2: float, lon2: float
+    lat1: float, lon1: float, lat2: float, lon2: float, use_haversine=False
 ) -> Dict[Profile, Union[TransitDirectionSummary, TransitDirectionError]]:
+    if use_haversine:
+        distance = haversine_distance((lat1, lon1), (lat2, lon2))
+        walking_time = distance / 1.42  # Assume walking at 5 kmph
+        driving_time = distance / 11.16  # Assume driving at 40 kmph
+        return {
+            Profile.foot_walking: TransitDirectionSummary(
+                distance,
+                walking_time,
+                Units("meters", "seconds"),
+            ),
+            Profile.driving_car: TransitDirectionSummary(
+                haversine_distance((lat1, lon1), (lat2, lon2)),
+                driving_time,
+                Units("meters", "seconds"),
+            ),
+        }
     url = "http://127.0.0.1:8080/ors/v2/directions/{profile}"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
@@ -111,12 +183,22 @@ def get_transit_distance_duration(
     ] = {}
 
     for profile in profiles:
-        response = requests.post(
-            url.format(profile=profile.value),
-            headers=headers,
-            json=data,
-            timeout=3,
-        )
+        try:
+            response = requests.post(
+                url.format(profile=profile.value),
+                headers=headers,
+                json=data,
+                timeout=3,
+            )
+        except (
+            requests.exceptions.ReadTimeout,
+            requests.exceptions.ConnectionError,
+        ) as exc:
+            logger.exception(
+                "Read or connection Timeout for profile %s", profile.value
+            )
+            directions[profile] = TransitDirectionError(999, str(exc))
+            continue
         if response.status_code == 200:
             try:
                 response_data = SuccessfulResponse.model_validate_json(

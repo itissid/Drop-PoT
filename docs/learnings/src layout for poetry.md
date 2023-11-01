@@ -7,3 +7,4 @@ Tests can be run from the project directory(~/workspace/drop) itself:
 python  -m pytest  --capture=tee-sys  tests/integration/
 python  -m pytest  --capture=tee-sys  tests/unit/
 
+Pylint complained about not finding imports because it did not have context 
