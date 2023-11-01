@@ -6,7 +6,7 @@ from typing import cast
 
 import typer
 from colorama import Fore  # type: ignore
-from datasette_faiss import encode  # type: ignore
+import struct
 
 from ..lib.ai import EmbeddingSearch
 from ..model.mood_model_unsupervised import (
@@ -122,6 +122,9 @@ def index_mood_embeddings(
             # datasette-fais compatible blob
             row["embedding_vector"] = encode(embedding_vector)
         insert_into_embeddings_table(ctx.obj["engine"], embedding_text_records)
+
+def encode(vector):
+    return struct.pack("f" * len(vector), *vector)
 
 
 def _sanity_check_before_inserting_embeddings(sub_mood, db_indexed_submood):
