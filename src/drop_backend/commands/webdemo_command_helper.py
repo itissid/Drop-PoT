@@ -21,7 +21,7 @@ from ..utils.ors import (
     Profile,
     TransitDirectionError,
     TransitDirectionSummary,
-    get_transit_distance_duration_wrapper,
+    TransitDistanceDurationCalculator,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,7 @@ class TaggedEvent:
 
 def geotag_moodtag_events_helper(
     engine_or_context: Union[Engine, "typer.Context"],
+    ors_api_endpoint:str,
     filename: str,
     version: str,
     where_lat: float,
@@ -146,6 +147,7 @@ def geotag_moodtag_events_helper(
     ]
     # Calculate the time threshold
     filtered_events = []
+    dist_dur_calc = TransitDistanceDurationCalculator(ors_api_endpoint)
     for event in event_lst:
         if event.event_json is not None and should_include_event(
             when,
@@ -168,7 +170,7 @@ def geotag_moodtag_events_helper(
                 ]
             ] = None
             try:
-                directions = get_transit_distance_duration_wrapper(
+                directions = dist_dur_calc.get_transit_distance_duration_wrapper(
                     where_lat, where_lon, event.geo_dict
                 )
             except Exception as exc:  # pylint: disable=broad-except
