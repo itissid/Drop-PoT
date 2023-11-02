@@ -8,5 +8,3 @@ A. First say `poetry shell` get the python dir:
 /Users/sid/Library/Caches/pypoetry/virtualenvs/drop-backend-mARnuQZ7-py3.9/bin/python
 ```
 Then press Ctrl+Shift+P and set the python interpreter to be that.
-
-Q. How do I 
