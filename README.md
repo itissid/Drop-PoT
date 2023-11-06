@@ -2,8 +2,21 @@
 The idea is to use this framework as a test bed for testing drop's prompt's data quality(for now limited to textual prompts).
 Lots of pieces are still missing; 
 - The ranking is generic and based on content personalized, there is no social graph.
-- The examples in this PoC are not the final prompts(In the real app there will be a BFF(Conversational ChatGPT like api) that will intercept the data and actually polish/rank/filter and serve the prompts). 
+- The examples in this PoC are not the final prompts(In the real app there will be a BFF(Conversational ChatGPT like api) that will intercept the data and actually polish/rank/filter and serve the prompts).
+- There is a nifty little library that can help you generate stubs for the function call API for OpenAI. Given a Pydantic data model(TODO: Base class link) it does a few things
+  - It genenrates [code](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/schema/weather_event_schema.py) for the JsonSchema input to the OpenAI function API and [hooks it up](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L105-L124) with your Pydantic Model to [get](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L160) the function return value too. All you have to do is:
+  - 1: Create your base pydantic model like [here](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/weather_event.py#L23) and implement the function call and return whatever you want. For this project the pydantic object was not an actual API function call but to [validate](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/types/city_event.py#L90) the returned data from AI, but you can call whatever you want and return an object
+  - 2: Call a command like the following(this one was for tests):
+  ```
+  Example for creating WeatherEvent base class and hook it to AI.
+  
+   PYTHONPATH=".:src/:tests/" python -m drop_backend.commands config-generator-commands gen-model-code-bindings WeatherEvent --schema-directory-prefix tests/integration/fixtures/schema/ --type-module-prefix tests.integration.fixtures
+  
+  # OR if your root python package starts at the root dir of your project, your virtualenv should follow this template:
 
+  python -m  drop_backend.commands config-generator-commands gen-model-code-bindings <CamelCasePydanticClass> --schema-directory-prefix your_base_package/inner_package/schema --type-module-prefix your_base_package.inner_package
+  ```
+  Just note to create the `WeatherEvent` example pydantic model in the file with the name `weather_event.py`.
 
 Tech wise the PoC is to ingest text content into a vector database from which we can retrieve relevant search results(i.e. the bread and butter of prompts) given a NL Query which we call a "[mood](./main/model/mood_seed.py)" which we will infer or generate(seed). 
 
