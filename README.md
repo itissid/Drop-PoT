@@ -1,42 +1,30 @@
-# poc_drop_content_search
-The idea is to use this framework as a test bed for testing drop's prompt's data quality(for now limited to textual prompts).
-Lots of pieces are still missing; 
-- The ranking is generic and based on content personalized, there is no social graph.
-- The examples in this PoC are not the final prompts(In the real app there will be a BFF(Conversational ChatGPT like api) that will intercept the data and actually polish/rank/filter and serve the prompts).
-- There is a nifty little library that can help you generate stubs for the function call API for OpenAI. Given a Pydantic data model(TODO: Base class link) it does a few things
-  - It genenrates [code](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/schema/weather_event_schema.py) for the JsonSchema input to the OpenAI function API and [hooks it up](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L105-L124) with your Pydantic Model to [get](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L160) the function return value too. All you have to do is:
-  - 1: Create your base pydantic model like [here](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/weather_event.py#L23) and implement the function call and return whatever you want. For this project the pydantic object was not an actual API function call but to [validate](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/types/city_event.py#L90) the returned data from AI, but you can call whatever you want and return an object
-  - 2: Call a command like the following(this one was for tests):
+# What's in here?
+This is a framework, tools, libs that enables this [demo](https://github.com/itissid/drop_webdemo). It has
+1. An api(see ai.py) with OpenAI Api to ingest `events`(things that have attributes like date, time, address, pricing what have you) and extract structured data from it.
+2. There is a nifty little library that can help you generate stubs for the function call API for OpenAI. Given a Pydantic data model(TODO: Base class link) it can:
+  - Genenrate [code](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/schema/weather_event_schema.py) for the JsonSchema input to the OpenAI function API and [hooks it up](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L105-L124) with your Pydantic Model to [get](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L160) the function return value. All you have to do is:
+  - 1: Create your base pydantic model like [here](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/weather_event.py#L23) and implement the function call and return whatever you want. For this project the I did not have to make the actual prescribed returned [AI function call](https://platform.openai.com/docs/api-reference/chat/create#chat-create-function_call), but instead but to [validate](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/types/city_event.py#L90) the returned data from AI for the `event`, but you can call whatever function you want in the hooks provided.
+  - 2: Once created you can wire it up as shown [here](https://github.com/itissid/poc_drop_content_search/blob/124d380e21439cf4f3f90ca617581bd774913dd8/tests/integration/test_message_to_api.py#L110) in the unit test to create an EventManager instance and pass it to the main [driver_wrapper](https://github.com/itissid/poc_drop_content_search/blob/b771ef7a96b091f98b554b8697a22a89fb346226/src/drop_backend/lib/ai.py#L140) instance that drives the AI.
+  - 3: To improve your System prompts iteratively; there is an API called [InterrogativeProtocol](https://github.com/itissid/Drop-PoT/blob/main/src/drop_backend/lib/interrogation.py#L22). Think of it analogus to using `pdb` to introspect the code and fix it. Instead here you can interact with the AI like a chat if your initial prompt produced.
+  - I used many example stubs in the code like the following(this one was for tests):
   ```
   Example for creating WeatherEvent base class and hook it to AI.
   
-   PYTHONPATH=".:src/:tests/" python -m drop_backend.commands config-generator-commands gen-model-code-bindings WeatherEvent --schema-directory-prefix tests/integration/fixtures/schema/ --type-module-prefix tests.integration.fixtures
+   PYTHONPATH=".:src/:tests/" python -m drop_backend.commands config-generator-commands gen-model-code-bindings WeatherEvent \
+   --schema-directory-prefix tests/integration/fixtures/schema/ --type-module-prefix tests.integration.fixtures
   
   # OR if your root python package starts at the root dir of your project, your virtualenv should follow this template:
 
-  python -m  drop_backend.commands config-generator-commands gen-model-code-bindings <CamelCasePydanticClass> --schema-directory-prefix your_base_package/inner_package/schema --type-module-prefix your_base_package.inner_package
+  python -m  drop_backend.commands config-generator-commands gen-model-code-bindings <CamelCasePydanticClass> \
+  --schema-directory-prefix your_base_package/inner_package/schema \
+  --type-module-prefix your_base_package.inner_package
   ```
   Just note to create the `WeatherEvent` example pydantic model in the file with the name `weather_event.py`.
 
-Tech wise the PoC is to ingest text content into a vector database from which we can retrieve relevant search results(i.e. the bread and butter of prompts) given a NL Query which we call a "[mood](./main/model/mood_seed.py)" which we will infer or generate(seed). 
+  3. Additionally to support NL categorization(a [picture](https://github.com/itissid/drop_webdemo/blob/main/docs/DetailsSmall.jpg) is a 1000 words) of events(kind of like RAG: Use current `event` data only to generate categories) it has utilities to ground AI generated categores by embedding the info in prompts or index the embeddings for events and using vector similarity(K Means) to generate categories. For example for different extracted details of the [events](https://github.com/itissid/poc_drop_content_search/blob/7642f0792c68a104fa5628e4c9663b099c7a1ec4/src/drop_backend/commands/embedding_commands.py#L156) into a SQLite database.
+  4. Since `event`s are happening around the city they need to be geocoded, direction and distance needs to be supported. To that extent some utilities exist to use ORS-OpenRouteService to support it.
+  5. Use of modern tooling like poetry, pytest, docker to generate wheels for use.
 
-There are a few core ideas of we do want to demonstrate:
-1. To a fair extent we can extract structured information from unstructured web content using OpenAIs API. For example the `event_json` column is a JSON of facts extracted from the `original_event` data scraped from the web:
-![s](./docs/StructuredInfoFromText.png) column is retrieved from unstructured text using a prompt.
-
-2. Generate seed moods for a locality(Hoboken or South Bangalore) to start off.
-
-3. We can use embeddings from OpenAI API to emnde data from steps 1, 2 (see the embeddings table in drop.db) the purpose is to find similarity 
-in a dataset using FAISS [Vector search](https://datasette.io/plugins/datasette-faiss):
-![relevant events](./docs/Relevant%20Events.png) There is nothing new about embeddings and vector databases. What is new is we *dynamically index* a subset of the data and query it repeatedly using 
-datasett-faiss. At scale we can do this using commercial vector databases like PineCone. But you will be surprised at how far SQLite can go :). The need for dynamic index comes from  the so called interaction, which I imagine can come from user cues from our Shared space or from the Context and happens repeatedly.
-
-3. TODO: We can order the events in a reverse spatial-cronological order.
-- The events are always ordered into two buckets "Here" and "Later" and then sorted by spatial distance. 
-This is not hard to do once we know what is relevant to the mood.
-
-4. TODO: Lead into how we can go from issues we Cold start towards improving the quality of content retrieved using
-a ML NLP model.
 
 # UPDATE (14th July): 
 Play with the database: The database [dump](https://www.dropbox.com/home/project_drop) can be visualized using datasette:
@@ -46,25 +34,36 @@ Install [datasette](https://datasette.io/) in the python virtual env and just sa
 This is what you should see: ![this](./docs/Screenshot%202023-07-14%20at%207.01.44%20AM.png)
 
 
-# Lay of the land 
-## Data Extraction Flow
-Always start with the data first and play with it to get a good feel of what it looks like. *THEN* comes the ML/AI play.
+
+# Data Extraction Flow
+Always start with the data first and play with it to get a good feel of what it looks like. *THEN* comes the ML/AI play. Here are some  important extraction flows:
 ```
 Scrape and Ingest data -> Post Process Data -> Extract Events*        -> Embedding
      |                        |                    |                        |
   Local File                Local File          SQLLite            SQLLite(or a Vectorstore)
+
+ Extracted Event -> Reverse GeoCode
+     |                    |
+   SQLite              SQLite
+
+ Extracted Event -> Categorization
+     |                    |
+   SQLite              SQLite
 ```
 
 
 ## Code base layout:
-- Core data structure for `Event` is: `main/model/types.py`
-- Prompts for extraction are in `main/prompts/hoboken_girl_prompt.py`
-- AI and DB utilities are in `main/lib/ai.py` and `main/lib/db.py` along woth other utility functions
--  Main executable is a CLI interface in `main/hoboken_girl_extraction.py`
+- Since function calling is so central to the framework, there is a Pydantic Type called [`CreatorBase`](https://github.com/itissid/poc_drop_content_search/blob/b771ef7a96b091f98b554b8697a22a89fb346226/src/drop_backend/types/base.py#L4) that aids in creation of validated types from AI function call responses.
+- A wrapper data structure for marshalling internal types to a stream of messages for AI is `Event` in `src/drop_backend/model/ai_conv_types.py`. 
+- The `EventManager` that manages function calling: `src/drop_backend/lib/event_node_mananger.py`.
+- Prompts for extraction are in `src/drop_backend/prompts/hoboken_girl_prompt.py`.
+- AI and DB libs are in `src/drop_backend/lib/ai.py` and `src/drop_backend/lib/db.py`.
+- An important executable is a CLI interface in `src/drop_backend/commands/hoboken_girl_extraction.py`. There are many others to reverse geo tag, support RAG based extraction etc in `src/drop_backend/commands/`
+- ORS, reverse geotagging, formatting and other useful things are in `src/drop_backend/utils/`.
 
 ## After setting up virtualenv/pyenv you can
 Run:
-`python main/hoboken_girl_extraction.py --help`
+`poetry run python -m  main.hoboken_girl_extraction`
 You will see three commands that are explained in the flow above.
 ```
 ╭─ Commands ──────────────────────────────────────────────────────────────────────────────────────────────╮
@@ -143,6 +142,11 @@ python main/hoboken_girl_extraction.py index-mood-embeddings MILLENIALS
 ```
 
 # 5. Demo!
+## New Demo(October 2023)
+
+https://github.com/itissid/drop_webdemo
+
+## OLD Demo
 Lets use the mood embeddings to find relevant embeddings. Check out [this](./example_retrieval.sql) script.
 You should run it in the datasette browser after you have installed the plugin in your env.
 Here are some of the results. Rule of thumb: below 0.36 distance the results are better:
