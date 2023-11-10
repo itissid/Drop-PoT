@@ -1,12 +1,12 @@
 # What's in here?
 This is a framework, tools, libs that enables this [demo](https://github.com/itissid/drop_webdemo). It has
 1. An api(see ai.py) with OpenAI Api to ingest `events`(things that have attributes like date, time, address, pricing what have you) and extract structured data from it.
-2. There is a nifty little library that can help you generate stubs for the function call API for OpenAI. Given a Pydantic data model(TODO: Base class link) it can:
+2. There is a nifty little library that can help you generate stubs for the function call API for OpenAI. Given a Pydantic data model inheriting from the [BaseClass](https://github.com/itissid/poc_drop_content_search/blob/b771ef7a96b091f98b554b8697a22a89fb346226/src/drop_backend/types/base.py#L4) it can:
   - Genenrate [code](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/schema/weather_event_schema.py) for the JsonSchema input to the OpenAI function API and [hooks it up](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L105-L124) with your Pydantic Model to [get](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L160) the function return value. All you have to do is:
-  - 1: Create your base pydantic model like [here](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/weather_event.py#L23) and implement the function call and return whatever you want. For this project the I did not have to make the actual prescribed returned [AI function call](https://platform.openai.com/docs/api-reference/chat/create#chat-create-function_call), but instead but to [validate](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/types/city_event.py#L90) the returned data from AI for the `event`, but you can call whatever function you want in the hooks provided.
-  - 2: Once created you can wire it up as shown [here](https://github.com/itissid/poc_drop_content_search/blob/124d380e21439cf4f3f90ca617581bd774913dd8/tests/integration/test_message_to_api.py#L110) in the unit test to create an EventManager instance and pass it to the main [driver_wrapper](https://github.com/itissid/poc_drop_content_search/blob/b771ef7a96b091f98b554b8697a22a89fb346226/src/drop_backend/lib/ai.py#L140) instance that drives the AI.
-  - 3: To improve your System prompts iteratively; there is an API called [InterrogativeProtocol](https://github.com/itissid/Drop-PoT/blob/main/src/drop_backend/lib/interrogation.py#L22). Think of it analogus to using `pdb` to introspect the code and fix it. Instead here you can interact with the AI like a chat if your initial prompt produced.
-  - I used many example stubs in the code like the following(this one was for tests):
+    - 1: Create your base pydantic model like [here](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/weather_event.py#L23) and implement the function call and return whatever you want. For this project the I did not have to make the actual prescribed returned [AI function call](https://platform.openai.com/docs/api-reference/chat/create#chat-create-function_call), but instead but to [validate](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/types/city_event.py#L90) the returned data from AI for the `event`, but you can call whatever function you want in the hooks provided.
+    - 2: Once created you can wire it up as shown [here](https://github.com/itissid/poc_drop_content_search/blob/124d380e21439cf4f3f90ca617581bd774913dd8/tests/integration/test_message_to_api.py#L110) in the unit test to create an EventManager instance and pass it to the main [driver_wrapper](https://github.com/itissid/poc_drop_content_search/blob/b771ef7a96b091f98b554b8697a22a89fb346226/src/drop_backend/lib/ai.py#L140) instance that drives the AI.
+    - 3: To improve your System prompts iteratively; there is an API called [InterrogativeProtocol](https://github.com/itissid/Drop-PoT/blob/main/src/drop_backend/lib/interrogation.py#L22). Think of it analogus to using `pdb` to introspect the code and fix it. Instead here you can interact with the AI like a chat if your initial prompt produced.
+  - I dogfooded this library in my code and used many example stubs in the code, this one was for tests:
   ```
   Example for creating WeatherEvent base class and hook it to AI.
   
@@ -79,7 +79,8 @@ You will see three commands that are explained in the flow above.
 Potentially other web page that has content, but script might need tuning.
 ## Example command:
 ```
-poetry python run main/hoboken_girl_extraction.py ingest-urls /Users/sid/workspace/scraping/examples/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-30-2023/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-23-2023/ --run-prefix test
+python -m drop_backend.commands.hoboken_girl_extraction \
+ingest-urls ~/workspace/scraping/examples/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-30-2023/ https://www.hobokengirl.com/hoboken-jersey-city-events-june-23-2023/ --run-prefix test
 ```
 will scrape two pages(internally using BeautifulSoup and requests)
 
@@ -89,7 +90,7 @@ Since its heuristic one need to double check if all events have been delimited(~
 
 ## Example command :
 ```
->> python main/hoboken_girl_extraction.py post-process  ~/workspace/scraping/examples/test_ingestion/hobokengirl_com_hoboken_jersey_city_events_june_30_2023_20230704_170142.txt
+>> python -m drop_backend.commands.hoboken_girl_extraction.py post-process  ~/workspace/drop/examples/test_ingestion/hobokengirl_com_hoboken_jersey_city_events_june_30_2023_20230704_170142.txt
 ```
 
 # 3. Extract Events(Use AI!)
@@ -117,7 +118,7 @@ We record the failures in the database:
 |           |null      |State Fair Meadowlands at MetLife Stadium   Ongoi...|That model is currently overloaded with other requests. You can retry your request, or contact us through our help center at help.openai.com if the error persists. (Please include the request ID 69490a87a9700a07a206ca1900d0d305 in your message.) (Error occurred while streaming.)|hobokengi...      |v1     |
 |           |null      |The Laugh Tour Comedy Club at Dorrian’s Red Hand ...|                                                                                                                                                                                                                                                                                       |hobokengi...      |v1     |
 
-# 3.1 Generate the moods
+# 3.1 Generate the moods(without RAG)
 This step is extremely hackish. We want to be able to use moods from the shared space that can retrieve relevant things for the user to see. The idea is encapsulated in the [PROMPT](./main/model/mood_seed.py)
 variable where I gave it to ChatGPT to just generate moods for me. 
 
@@ -128,8 +129,42 @@ I have faced more of the Missing data than the overlapping issue.
 Poor score with moods(due to lack of data):
 ![moods](./docs/MoodsWithLackOfDataForThem.png)
 
+# 3.2 Generate the moods(with RAG and preferred)
+To generate grounded moods use the following command:
+```
+ python -m drop_backend.commands data-ingestion-commands index-event-moods --cities="Hoboken,JerseyCity" --demographics="Millenials,IndianAmericans,GenZ" hobokengirl_com_diwali_events_hudson_county_2023_20231110_065438_postprocessed v1
+ ```
+ The results are much better than using kmeans on vector emebedding and then using the top docs to get the moods.
 
-# 4. Use OpenAI Embeddings to create Embedding vectors
+TODO: My RAG is pretty simple, feed the actual event with the prompts and generate the mood
+
+# 4. Reverse Geocode the events
+- First run the ORS service that can do reverse geocoding
+Assuming you have done some of the steps in [how_to_nominatim](./docs/learnings/how_to_nominatim.md) doc, you can run the docker image like so:
+```
+ docker run -it -e \
+ PBF_PATH=/osm-maps/data/new-york_new-york.osm.pbf \
+ -p 8080:8080  \
+ -v /Users/sid/workspace/drop/geodata/new-york_new-york.osm.pbf:/osm-maps/data/new-york_new-york.osm.pbf \
+ --name sid-nomatim2 \   
+ mediagis/nominatim:4.2
+```
+
+- Once its up and running:
+```
+ python -m drop_backend.commands reverse-geocoding-commands  do-rcode hobokengirl_com_hoboken_jersey_city_events_november_10_2023_20231110_065435_postprocessed  v1
+```
+can do the reverse geocoding.
+
+> At this point we are almost ready to run the web service
+with the data in drop DB. DO a final test using the command:
+
+```
+poetry run python  -m drop_backend.commands  webdemo-adhoc-commands --loglevel debug geotag-moodtag-events --help # hobokengirl_com_hoboken_jersey_city_events_september_1_2023_20230913_160012_a.txt_postprocessed v1 40.741924698522084 ' -74.0358352661133' --when now --now-window-hours 1 --stubbed-now 2023-11-09
+```
+which tests the routine that gathers all the data for displaying on the webpage.
+
+# 5(Optional). Use OpenAI Embeddings to create Embedding vectors
 1. To create the embeddings for the moods in mood_seed.py use. Example: 
 ```
 python main/hoboken_girl_extraction.py index-moods MILLENIALS
@@ -143,9 +178,11 @@ python main/hoboken_girl_extraction.py index-mood-embeddings MILLENIALS
 
 # 5. Demo!
 ## New Demo(October 2023)
-http://drophere.co
+[UPDATE: 10th Nov 2023] See demo here: http://drophere.co
 
 ## OLD Demo
+https://github.com/itissid/drop_webdemo
+
 Lets use the mood embeddings to find relevant embeddings. Check out [this](./example_retrieval.sql) script.
 You should run it in the datasette browser after you have installed the plugin in your env.
 Here are some of the results. Rule of thumb: below 0.36 distance the results are better:

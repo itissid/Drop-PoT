@@ -29,11 +29,22 @@ Setting up docker  instance for querying.
  mediagis/nominatim:4.2
 
  How to reverse geocode?
- TODO: Call the API on docker and test the reverse geocoding results.
+ - See the main README there is a step there for it
+ 
 
 
- Setting up docker instance for Open Routing Service!
+# Setting up docker instance for Open Routing Service
+(TODO): How can I consolidate this adhoc docker command and the image I deploy on k8s?
+This is used to look up the routing information between two points on the map we extracted.
+```
+cd ~/workspace/openrouteservice/openrouteservice
+docker compose up --build
 
+```
+
+
+# DON"T USE BELOW. INSTEAD USE docker compose up instead.
+cd ~/workspace/openrouteservice/openrouteservice
 
 mkdir -p docker/conf docker/elevation_cache docker/graphs docker/logs/ors docker/logs/tomcat
 docker run -dt -u "${UID}:${GID}" \
@@ -49,3 +60,15 @@ docker run -dt -u "${UID}:${GID}" \
   -e "JAVA_OPTS=-Djava.awt.headless=true -server -XX:TargetSurvivorRatio=75 -XX:SurvivorRatio=64 -XX:MaxTenuringThreshold=3 -XX:+UseG1GC -XX:+ScavengeBeforeFullGC -XX:ParallelGCThreads=4 -Xms1g -Xmx2g" \
   -e "CATALINA_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9001 -Dcom.sun.management.jmxremote.rmi.port=9001 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost" \
   openrouteservice/openrouteservice:latest
+~~
+
+
+How do we know its working correctly?  
+
+- For the extract of Jersey city and
+hoboken here is the curl command to check it(note the radiuses parameter is set
+to -1 to indicate that we want the route to be calculated without any
+restrictions):
+
+
+ curl -X POST   'http://127.0.0.1:8080/ors/v2/directions/foot-walking'   -H 'Content-Type: application/json; charset=utf-8'   -H 'Accept: application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8'   -d '{"coordinates":[[-74.0358352661133, 40.741924698522084], [-74.04201353264135, 40.69859355]], "radiuses":[-1]}'
