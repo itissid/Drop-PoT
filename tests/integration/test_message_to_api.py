@@ -1,9 +1,7 @@
-import json
 import os
 import unittest
 from typing import Any, Dict, List, Optional, Tuple
 
-import ipdb  # type: ignore
 import openai
 from dotenv import load_dotenv
 
@@ -11,7 +9,6 @@ from drop_backend.lib.ai import AIDriver, AltAI, driver_wrapper
 from drop_backend.lib.event_node_manager import BaseEventManager, EventManager
 from drop_backend.model.ai_conv_types import (
     MessageNode,
-    OpenAIFunctionCallSpec,
     Role,
     UserExplicitFunctionCall,
 )
@@ -211,4 +208,6 @@ if __name__ == "__main__":
     try:
         runner.run(suite)
     except Exception:  # pylint: disable=broad-except
-        ipdb.post_mortem()
+        import pdb  # type: ignore
+
+        pdb.post_mortem()

@@ -239,6 +239,7 @@ def extract_serialize_events(
         "v1", help="The version of the event extractor to use"
     ),
     retry_only_errors: bool = False,
+    skip_indexed_events: bool = False,
     # Large enough.
     max_acceptable_errors: int = int(1e7),
 ):
@@ -259,6 +260,14 @@ def extract_serialize_events(
     items = get_num_events_by_version_and_filename(
         ctx, version, ingestable_article_file.name
     )
+    if not retry_only_errors:
+        events = _event_gen(ingestable_article_file)
+    else:
+        logger.warning("Retry logic not implemented yet. Bailing out")
+        return
+        # TODO: Fetch failed events from database and retry them. Maybe have somekind
+        # of a queue abstraction that I can read failure events from instead of using
+        # SQLLite as a "queue" for such things.
     # A bit of sanity check.
     if items > 0:
         typer.echo(
@@ -267,24 +276,23 @@ def extract_serialize_events(
                 f" the {version} version and file {ingestable_article_file.name}"
             )
         )
+        if skip_indexed_events:
+            typer.echo("Flag set. Already indexing events will be skipped.")
+            events = events[items:]
+            typer.echo(f"There are {len(events)} events left to index")
+        else: 
+            typer.echo("Duplicate events will be added to the database!")
         if not would_you_like_to_continue():
             return
-        else:
-            typer.echo("Duplicate events will be added to the database!")
 
-    if not retry_only_errors:
-        events = _event_gen(ingestable_article_file)
-    else:
-        # TODO: Fetch failed events from database and retry them. Maybe have somekind
-        # of a queue abstraction that I can read failure events from instead of using
-        # SQLLite as a "queue" for such things.
-        pass
     if not events:
         logger.warning("No events found. Exiting")
         return
 
-    ai = AltAI()
-    event_manager = EventManager()
+    ai = AltAI()  # pylint: disable=invalid-name
+    event_manager = EventManager(
+        "CityEvent", "drop_backend.types", "drop_backend.types.schema"
+    )
     ai_driver = AIDriver(ai, event_manager=event_manager)
 
     system_message = MessageNode(
@@ -330,7 +338,7 @@ def extract_serialize_events(
                 version=version,
             )
         except Exception as error:  # pylint: disable=broad-except
-            id = add_event(  # pylint: disable=invalid-name
+            _id = add_event(  # pylint: disable=invalid-name
                 ctx,
                 event=None,
                 original_text=event.raw_event_str,
@@ -340,7 +348,7 @@ def extract_serialize_events(
                 version=version,
             )
             logger.exception(error)
-            logger.warning("Event id #%d saved with its error", id)
+            logger.warning("Event id #%d saved with its error", _id)
             if num_errors > max_acceptable_errors:
                 logger.error(
                     (

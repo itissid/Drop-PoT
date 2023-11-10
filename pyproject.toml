@@ -20,8 +20,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.poetry]
 name = "drop_backend"
-version = "0.1.0"
-description = "Command line tools for building drop"
+version = "1.0.7-alpha"
+description = "API and Command line tools for building drop"
 authors = ["Sid <itissid@gmail.com>"]
 packages = [{ include = "drop_backend", from = "src" }]
 
@@ -200,7 +200,7 @@ time-uuid = "^0.2.0"
 typer = "^0.9.0"
 alembic = "^1.11.3"
 annotated-types = "^0.6.0"
-mypy = {version = "^1.6.1", optional = true}
+mypy = { version = "^1.6.1", optional = true }
 deptry = "^0.12.0"
 pygeoif = "^1.1.1"
 python-dotenv = "^1.0.0"
@@ -224,14 +224,7 @@ debugging_analysis = [
   "ipywidgets",
   "icontract",
 ]
-tools = [
-  "interline-planetutils",
-] # used for vscode, data extraction
-quality = [
-  "mypy",
-  "pylint",
-  "pylance",
-]
+quality = ["mypy", "pylint", "pylance"]
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.0"
 nose = "^1.3.7"
@@ -242,3 +235,14 @@ plugins = ["pydantic.mypy", "sqlmypy"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+exclude = [
+    "*.log",
+    "*.tmp",
+    "**/__pycache__",
+    "**/*.py[cod]",
+    "**/*.so",
+    "**/*.dylib",
+    "**/.DS_Store",
+    "*.db"
+]

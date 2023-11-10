@@ -63,9 +63,9 @@ class InteractiveInterrogationProtocol(InterrogationProtocol):
                 typer.echo(
                     "\n".join(
                         [
-                            f"{k}: {str(v)} ({type(v)})"
+                            f"{k}: {str(v)}"
                             for k, v in formatted_dict(
-                                dict(event.event_obj)
+                                dict(event.event_obj), val_func=type
                             ).items()
                         ]
                     )

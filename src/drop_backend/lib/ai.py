@@ -21,8 +21,8 @@
 
 from __future__ import annotations
 
-import traceback
 import logging
+import traceback
 from typing import (
     Any,
     Callable,
@@ -115,7 +115,7 @@ class AIDriver:
                     logger.error(
                         "Pydantic validation error in sending message to AI: %s.\n Trace: %s",
                         exc.json(),
-                        stack_trace
+                        stack_trace,
                     )
                     yield exc
                     break
@@ -304,11 +304,12 @@ class AltAI:
     """
 
     def __init__(
-        self, model: str = "gpt-3.5-turbo-16k", temperature: float = 0.1
+        self, model: str = "gpt-3.5-turbo-1106", temperature: float = 0.1
     ):
         self.temperature = temperature
         try:
             openai.Model.retrieve(model)
+            logger.info("Using model %s", model)
             self.model = model
         except openai.InvalidRequestError:
             logger.warning(

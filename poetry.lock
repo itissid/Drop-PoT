@@ -4721,9 +4721,8 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [extras]
 debugging-analysis = ["icontract", "ipdb", "ipykernel", "ipython-genutils", "ipywidgets"]
 quality = ["mypy", "pylance", "pylint"]
-tools = []
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "7d288e3e9830e0bb6817b15589390f1fd3d4e031974878dbc5c12984cf0df86b"
+content-hash = "0661ce646506d179882e9ba91103c64f1e85c4352c22dffb0d0b87e708537cce"

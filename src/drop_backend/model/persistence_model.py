@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    or_,
 )
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
@@ -260,6 +261,7 @@ def get_parsed_events(
     filename: str,
     version: str,
     columns: Optional[List[Column]] = None,
+    parse_failed_only: bool = False,
 ) -> List[ParsedEventTable]:
     # Query the database for the given column with the given version and filename
     query = (
@@ -267,6 +269,13 @@ def get_parsed_events(
         .filter(ParsedEventTable.version == version)
         .filter(ParsedEventTable.filename == filename)
     )
+    if parse_failed_only:
+        query = query.filter(
+            or_(
+                ParsedEventTable.failure_reason.isnot(None),
+                ParsedEventTable.event_json.isnot(""),
+            )
+        )
     if columns:
         query = query.with_entities(*columns)
     parsed_events = query.all()
@@ -290,7 +299,7 @@ def fetch_events_geocoded_mood_attached(
     session,
     filename: str,
     version: str,
-    columns: Optional[List[Column]] = [],
+    columns: Optional[List[Column]] = None,
 ) -> List[ParsedEventTable]:
     """
     Fetches events from the database based on filename and version,

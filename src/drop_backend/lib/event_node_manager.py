@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
-from colorama import Fore # type: ignore
+from colorama import Fore  # type: ignore
 from pydantic import BaseModel  # type: ignore
 
 from ..model.ai_conv_types import (
@@ -33,7 +33,10 @@ class BaseEventManager(ABC):
     @abstractmethod
     def get_function_call_spec(
         self,
-    ) -> Tuple[Optional[List[OpenAIFunctionCallSpec]], Optional[UserExplicitFunctionCall]]:
+    ) -> Tuple[
+        Optional[List[OpenAIFunctionCallSpec]],
+        Optional[UserExplicitFunctionCall],
+    ]:
         ...
 
     @abstractmethod
@@ -66,6 +69,7 @@ class BaseEventManager(ABC):
         fn_name = self.extract_fn_name(ai_message=ai_message)
         fn_args, fn_kwargs = self.extract_fn_args(ai_message=ai_message)
         should_call_fn = self.should_call_function(ai_message=ai_message)
+
         if should_call_fn:
             assert fn_name is not None
             return self.call_fn_by_name(fn_name, *fn_args, **fn_kwargs)
@@ -88,6 +92,9 @@ class EventManager(BaseEventManager):
         # TODO: make type_name be a list so one of many functions can be called.
         self.no_function_spec: bool = False
         if not type_name:
+            logger.warning(
+                "No type name provided. Not generating function call spec."
+            )
             self._function_call_spec: Callable[
                 [],
                 Tuple[List[OpenAIFunctionCallSpec], UserExplicitFunctionCall],
@@ -129,7 +136,10 @@ class EventManager(BaseEventManager):
 
     def get_function_call_spec(
         self,
-    ) -> Tuple[Optional[List[OpenAIFunctionCallSpec]], Optional[UserExplicitFunctionCall]]:
+    ) -> Tuple[
+        Optional[List[OpenAIFunctionCallSpec]],
+        Optional[UserExplicitFunctionCall],
+    ]:
         # from code gen'ned module
         return self._function_call_spec()
 
@@ -147,7 +157,7 @@ class EventManager(BaseEventManager):
         ):
             return [], {}
         return [], ai_message.ai_function_call.arguments
-        
+
     def should_call_function(self, ai_message: MessageNode) -> bool:
         fn_name = self.extract_fn_name(ai_message=ai_message)
         if fn_name:

@@ -3,21 +3,17 @@ import logging
 import traceback
 from typing import Dict, Optional, Tuple
 
-import click
 import requests
 import typer
 
 from ..lib.ai import AltAI
 from ..model.ai_conv_types import MessageNode, Role
-from ..model.persistence_model import Base as PersistenceBase
 from ..model.persistence_model import (
     ParsedEventTable,
     add_geoaddress,
     get_parsed_events,
 )
 from ..types.city_event import CityEvent
-from ..utils.color_formatter import ColoredFormatter
-from ..utils.db_utils import validate_database
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
 
@@ -30,34 +26,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer()
 
 NOMINATIM_URL = "http://localhost:8080/search"
-
-
-@app.callback()
-def setup(
-    ctx: typer.Context,
-    loglevel: str = typer.Option("INFO", help="Set the log level"),
-    test_db: bool = False,
-):
-    click.get_current_context().obj = {}
-
-    obj = click.get_current_context().obj
-    loglevel = loglevel.upper()
-    if loglevel not in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
-        logger.error("Invalid log level: %s. Defaulting to INFO.", loglevel)
-        loglevel = "INFO"
-    print(f"loglevel: {loglevel}")
-    root_logger = logging.getLogger()
-    root_logger.setLevel(loglevel)
-    colored_formatter = ColoredFormatter(LOG_FORMAT)
-    for handler in root_logger.handlers:
-        handler.setFormatter(colored_formatter)
-    if ctx.invoked_subcommand == "coordinates-from-event-addresses":
-        logger.info("Initializing database table")
-        validate_database(test_db=test_db)
-        PersistenceBase.metadata.create_all(bind=obj["engine"])
 
 
 class HTTPException(Exception):
@@ -105,11 +75,11 @@ def ask(address, alt_ai: AltAI) -> MessageNode:
                 message_content="""
             I am going to give you some addresses in a string format I want you to normalize them and return the normalized address in a json format.
         
-            example if I give you : `1301 Hudson Street, Jersey City`. Return JSON:
+            example if I give you : `1301 Hudson Street, Jersey City`. Return JSON in the following format(triple back ticks are important)):
             ```{
-                "street': '1301 Hudson Street,',
-                "city': 'Jersey City',
-                "country': 'United States',
+                "street": "1301 Hudson Street",
+                "city": "Jersey City",
+                "country": "United States",
             }``` 
             Use the following rules to do this:
             0. Do not add the State if its missing in the address.
@@ -119,13 +89,13 @@ def ask(address, alt_ai: AltAI) -> MessageNode:
             "1301 Adams Street C3, Hoboken"
             I want you to return the JSON:
             ```{
-                "street': "1301 Adams Street",
-                "city': "Hoboken",
-                "country': "United States",
+                "street": "1301 Adams Street",
+                "city": "Hoboken",
+                "country": "United States",
             }```
             stripping out the C3
 
-            4. Return your answer in a json delimited by triple back ticks. 
+            4. Return your answer in a **VALID** json delimited by triple back ticks. 
 
             Wait for me to paste the address.
         """,
@@ -147,19 +117,27 @@ def _try_format_address_with_ai(address: str) -> Optional[Dict[str, str]]:
         else None
     )
     if address_str:
-        address_json = json.loads(address_str)
+        try:
+            address_json = json.loads(address_str)
+        except json.JSONDecodeError as exc:
+            logger.warning(
+                "Failed to parse json from `%s` due to %s", address_str, exc
+            )
+            raise exc
         return address_json
     else:
         logger.warning("Got no response from ai for %s", address)
     return None
 
 
-@app.command()
-def coordinates_from_event_addresses(
-    ctx: typer.Context, filename: str, version: str
+def do_rcode(
+    ctx: typer.Context,
+    filename: str,
+    version: str,
+    parse_failed_only: bool = False,
 ) -> None:
     parsed_events = get_parsed_events(
-        ctx.obj["engine"],
+        ctx,
         filename=filename,
         version=version,
         columns=[
@@ -168,12 +146,13 @@ def coordinates_from_event_addresses(
             ParsedEventTable.name,
             ParsedEventTable.description,
         ],
+        parse_failed_only=parse_failed_only,
     )
-
+    typer.echo(f"Got {len(parsed_events)} events to process")
     for event in parsed_events:
         event_obj = CityEvent(
             **{
-                **event.event_json,
+                **json.loads(event.event_json),
                 **dict(name=event.name, description=event.description),
             }
         )
@@ -190,7 +169,7 @@ def coordinates_from_event_addresses(
                     if json_address:
                         lat, long = get_coordinates(json_address)
                     else:
-                        raise Exception(
+                        raise ValueError(
                             f"Failed to get coordinates from AI as well for adddress {address}!"
                         )
             except Exception as exc:  #  pylint: disable=broad-exception-caught
@@ -202,7 +181,7 @@ def coordinates_from_event_addresses(
                 )
                 stack_trace = traceback.format_exc()
                 add_geoaddress(
-                    engine=ctx.obj["engine"],
+                    ctx,
                     parsed_event_id=event.id,
                     address=address,
                     failure_reason=str(stack_trace),
@@ -210,7 +189,7 @@ def coordinates_from_event_addresses(
                 continue
             logger.debug("Adding address %s for id %d", address, event.id)
             add_geoaddress(
-                engine=ctx.obj["engine"],
+                ctx,
                 parsed_event_id=event.id,
                 address=address,
                 latitude=lat,
@@ -220,11 +199,6 @@ def coordinates_from_event_addresses(
                 else "Failed to get find coordinates for this address",
             )
 
-
-# app.command()(coordinates_from_event_addresses)
-
-if __name__ == "__main__":
-    app()
 
 # N2S: Make sure your local Nominatim server is running and accessible at
 # http://localhost:8080. Adjust the URL and port as needed.

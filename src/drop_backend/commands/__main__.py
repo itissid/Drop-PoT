@@ -11,11 +11,12 @@ from ..lib.config_generator import check_should_update_schema
 from ..lib.config_generator import gen_schema as gen_schema_impl
 from ..lib.config_generator import generate_function_call_param_function
 from ..model.merge_base import bind_engine
+from ..types.custom_types import When
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
-from ..types.custom_types import When
 from .mood_commands import generate_and_index_event_moods
 from .webdemo_command_helper import geotag_moodtag_events_helper
+from .geo import do_rcode
 
 app = typer.Typer()
 config_generator_commands = typer.Typer(name="config-generator-commands")
@@ -46,7 +47,7 @@ def setup(
 
     if (
         ctx.invoked_subcommand
-        in set(["index-event-moods", "geotag-moodtag-events"])
+        in set(["index-event-moods", "geotag-moodtag-events", "do-rcode"])
         or force_initialize_db
     ):
         # pylint: disable=import-outside-toplevel,unused-import
@@ -135,6 +136,7 @@ def geotag_moodtag_events(  # pylint: disable=too-many-arguments,too-many-locals
     datetime_now = stubbed_now or datetime.now()
     return geotag_moodtag_events_helper(
         ctx.obj["engine"],
+        "http://localhost:8080/ors/v2/directions/{profile}",
         filename,
         version,
         where_lat,
@@ -150,12 +152,19 @@ data_ingestion_commands_app = typer.Typer(
 )
 app.add_typer(data_ingestion_commands_app)
 app.add_typer(config_generator_commands)
+reverse_geocoding_commands = typer.Typer(
+    name="reverse-geocoding-commands", callback=setup
+)
 webdemo_adhoc_commands = typer.Typer(
     name="webdemo-adhoc-commands", callback=setup
 )
+
 app.add_typer(webdemo_adhoc_commands)
 data_ingestion_commands_app.command()(index_event_moods)
 config_generator_commands.command()(gen_model_code_bindings)
+reverse_geocoding_commands.command()(do_rcode)
+app.add_typer(reverse_geocoding_commands)
+
 webdemo_adhoc_commands.command()(geotag_moodtag_events)
 
 if __name__ == "__main__":

@@ -116,14 +116,22 @@ def _pp(d: Dict) -> None:
         typer.echo(f"{key}: {val} ({type(v)})")
 
 
-def formatted_dict(d: Dict) -> Dict:
+def formatted_dict(d: Dict, val_func=lambda v: None) -> Dict:
     ret = {}
     for k, v in d.items():
         key = _optionally_format_colorama(
             str(k), should_format=True, color=Fore.GREEN
         )
-        val = _optionally_format_colorama(
-            str(v), should_format=True, color=Fore.BLUE
+        func_val_addl = ""
+        if val_func("foo") is not None:
+            func_val_addl = _optionally_format_colorama(
+                f": {val_func(v)}", should_format=True, color=Fore.WHITE
+            )
+        val = (
+            _optionally_format_colorama(
+                f"{v}", should_format=True, color=Fore.YELLOW
+            )
+            + func_val_addl
         )
         ret[key] = val
     return ret
