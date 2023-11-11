@@ -3,7 +3,7 @@ import enum
 import logging
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..utils.extraction_utils import flatten_list
 from .base import CreatorBase
@@ -68,6 +68,31 @@ class CityEvent(BaseModel, CreatorBase):
         default=None,
     )
     links: Optional[List[str]] = Field(default=None)
+
+    @field_validator("start_time", "end_time", mode='before')
+    @classmethod
+    def parse_time_format(cls, v):
+        if v:
+            try:
+                return [
+                    datetime.datetime.strptime(time, "%H:%M:%S").strftime(
+                        "%H:%M"
+                    )
+                    for time in v if v
+                ]
+            except ValueError:
+                try:
+                    return [
+                        datetime.datetime.strptime(time, "%H:%M").strftime(
+                            "%H:%M"
+                        )
+                        for time in v if v
+                    ]
+                except ValueError as exc:
+                    raise ValueError(
+                        "Time must be in format '%H:%M:%S' or '%H:%M'"
+                    ) from exc
+        return v
 
     @classmethod
     def create(cls, function_name: str, **kwargs) -> "CityEvent":  # type: ignore

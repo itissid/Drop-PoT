@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from typing import Optional, Union
+
+from .datetime_utils import datetime_string_processor
 from .ors import TransitDirectionSummary
+
 
 def format_event_summary(
     event_data: dict,
@@ -12,9 +15,18 @@ def format_event_summary(
     For the closest address we generate a summary.
     """
     # Concatenate start_date and start_time to form the event's start datetime string
+    start_datetime_str = event_data["start_time"]
+    # Standartize the time stamp to %H:%M
+    start_datetime_str_std = datetime_string_processor(
+        start_datetime_str, ["%H:%M", "%H:%M:%S"], "%H:%M"
+    )
+    event_start_datetime_str = (
+        f"{event_data['start_date']} {start_datetime_str_std}"
+    )
     event_start_datetime_str = (
         f"{event_data['start_date']} {event_data['start_time']}"
     )
+
     event_start_datetime = datetime.strptime(
         event_start_datetime_str, "%Y-%m-%d %H:%M"
     )
@@ -26,12 +38,12 @@ def format_event_summary(
     distance_miles = None
     if walking_distance_and_duration:
         distance_miles = (
-            walking_distance_and_duration.distance* 0.000621371
+            walking_distance_and_duration.distance * 0.000621371
         )  # Convert meters to miles
 
     # Determine if the event is ongoing based on the start datetime
     is_ongoing = (event_start_datetime <= current_datetime) or (
-        not event_data["start_date"] and not event_data["start_time"]
+        not event_data["start_date"] and not start_datetime_str_std
     )
 
     # Case 1: Event is ongoing and when == now

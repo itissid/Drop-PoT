@@ -1,4 +1,5 @@
 # Entry point for all commands. Set up things here like DB, logging or whatever.
+import json
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from ..model.persistence_model import (
     fetch_events_geocoded_mood_attached,
     should_include_event,
 )
+from ..types.city_event import CityEvent
 from ..types.custom_types import When
 from ..utils.ors import (
     GeoLocation,
@@ -55,12 +57,10 @@ class TaggedEvent:
         ]
     ]
 
-
 def geotag_moodtag_events_helper(
     engine_or_context: Union[Engine, "typer.Context"],
-    ors_api_endpoint:str,
-    filename: str,
-    version: str,
+    ors_api_endpoint: str,
+    file_version_constraints: Dict[str, List[str]],
     where_lat: float,
     where_lon: float,
     datetime_now: datetime,
@@ -92,7 +92,6 @@ def geotag_moodtag_events_helper(
         dummy_context = DummyContext()
         dummy_context.obj["engine"] = engine_or_context
     else:
-
         if isinstance(engine_or_context, typer.Context):
             dummy_context: typer.Context = engine_or_context  # type: ignore
         else:
@@ -102,10 +101,10 @@ def geotag_moodtag_events_helper(
 
     events: List[ParsedEventTable] = fetch_events_geocoded_mood_attached(
         dummy_context,
-        filename,
-        version,
+        file_version_constraints,
         columns=list(fetched_data_cols),
     )
+    logger.info("Got %d events from database", len(events))
     # Group by event and aggregate the addresses:
     events_dict: Dict[Union[str, int], Any] = defaultdict(
         lambda: dict(geo_dict=dict())
@@ -135,6 +134,10 @@ def geotag_moodtag_events_helper(
         _DedupedEvent(
             **{
                 "id": key,
+                # TODO(Fix me). I accidentally dumped the json string into instead of
+                # just giving sqlalchemy the object. So it took '{"a": 1}' and stored it as
+                # '"{\"a\": 1}"' in the db. So we need to do this hack to get the json back.
+                #
                 "event_json": value["event_json"],
                 "name": value["name"],
                 "description": value["description"],
@@ -170,8 +173,10 @@ def geotag_moodtag_events_helper(
                 ]
             ] = None
             try:
-                directions = dist_dur_calc.get_transit_distance_duration_wrapper(
-                    where_lat, where_lon, event.geo_dict
+                directions = (
+                    dist_dur_calc.get_transit_distance_duration_wrapper(
+                        where_lat, where_lon, event.geo_dict
+                    )
                 )
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception(exc)

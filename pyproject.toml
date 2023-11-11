@@ -20,7 +20,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.poetry]
 name = "drop_backend"
-version = "1.0.7-alpha"
+version = "1.1.0-alpha"
 description = "API and Command line tools for building drop"
 authors = ["Sid <itissid@gmail.com>"]
 packages = [{ include = "drop_backend", from = "src" }]

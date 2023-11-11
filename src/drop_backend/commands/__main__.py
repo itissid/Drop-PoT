@@ -14,9 +14,10 @@ from ..model.merge_base import bind_engine
 from ..types.custom_types import When
 from ..utils.color_formatter import ColoredFormatter
 from ..utils.db_utils import validate_database
+from ..utils.ors import Profile, TransitDirectionSummary
+from .geo import do_rcode
 from .mood_commands import generate_and_index_event_moods
 from .webdemo_command_helper import geotag_moodtag_events_helper
-from .geo import do_rcode
 
 app = typer.Typer()
 config_generator_commands = typer.Typer(name="config-generator-commands")
@@ -123,6 +124,12 @@ def gen_model_code_bindings(
     # Now use the event_node_manager.EventManager to use the schema as well as the type.
 
 
+# Userful to test.
+# # of events being returned is okay: Too low might mean,
+# Events parsed by AI were bad.
+# Reverse geotagging may have failed: rerun/fix it
+# Mood tagging may have failed: rerun/fix it
+# Some other bug in filtering data.
 def geotag_moodtag_events(  # pylint: disable=too-many-arguments,too-many-locals
     ctx: typer.Context,
     filename: str,
@@ -133,18 +140,54 @@ def geotag_moodtag_events(  # pylint: disable=too-many-arguments,too-many-locals
     now_window_hours: int = 1,
     stubbed_now: Optional[datetime] = None,
 ):
+    # stubbed_dict = {
+    #     "hobokengirl_com_hoboken_jersey_city_events_november_10_2023_20231110_065435_postprocessed": [
+    #         "v1",
+    #         "v2",
+    #     ],
+    #     "hobokengirl_com_diwali_events_hudson_county_2023_20231110_065438_postprocessed": [
+    #         "v1"
+    #     ],
+    # }
     datetime_now = stubbed_now or datetime.now()
-    return geotag_moodtag_events_helper(
+    tagged_events = geotag_moodtag_events_helper(
         ctx.obj["engine"],
         "http://localhost:8080/ors/v2/directions/{profile}",
-        filename,
-        version,
+        {filename: [version]},
+        # stubbed_dict,
         where_lat,
         where_lon,
         datetime_now,
         when,
         now_window_hours,
     )
+    logger.info("Got %d tagged events", len(tagged_events))
+    logger.info(
+        "number of events with a Reverse GeoCoded lat long are %d",
+        sum(1 for i in tagged_events if i.event.geo_dict),
+    )
+
+    def _direction(profile: Profile):
+        logger.info(
+            "Number of events with %s directions %d",
+            profile,
+            sum(
+                1
+                for te in tagged_events
+                if te.directions
+                and any(
+                    direction_dict
+                    and isinstance(
+                        direction_dict.get(profile, None),
+                        TransitDirectionSummary,
+                    )
+                    for direction_dict, _ in te.directions
+                )
+            ),
+        )
+
+    _direction(Profile.foot_walking)
+    _direction(Profile.driving_car)
 
 
 data_ingestion_commands_app = typer.Typer(

@@ -16,6 +16,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    and_,
     func,
     or_,
 )
@@ -155,7 +156,9 @@ def add_event(
             description=event.description  # type: ignore
             if event and "description" in event.model_fields
             else None,
-            event_json=event.model_dump_json() if event is not None else None,
+            event_json=event.model_dump(exclude=["name", "description"])
+            if event is not None
+            else None,
             original_event=original_text,
             replay_history=replay_history_json,
             chat_history=chat_history,
@@ -297,8 +300,7 @@ class GeoTaggedMoodTaggedEvents:
 @session_manager
 def fetch_events_geocoded_mood_attached(
     session,
-    filename: str,
-    version: str,
+    file_versions_constraints: Dict[str, List[str]],
     columns: Optional[List[Column]] = None,
 ) -> List[ParsedEventTable]:
     """
@@ -326,8 +328,17 @@ def fetch_events_geocoded_mood_attached(
             MoodSubmoodTable,
             SubMoodEventTable.mood_sub_mood_id == MoodSubmoodTable.id,
         )
-        .filter(ParsedEventTable.filename == filename)
-        .filter(ParsedEventTable.version == version)
+        .filter(
+            or_(
+                *[
+                    and_(
+                        ParsedEventTable.filename == filename,
+                        ParsedEventTable.version.in_(versions),
+                    )
+                    for filename, versions in file_versions_constraints.items()
+                ]
+            )
+        )
         .filter(GeoAddresses.latitude.isnot(None))
         .filter(GeoAddresses.longitude.isnot(None))
     )
@@ -355,8 +366,17 @@ def compute_hours_diff(
     end_datetime_str = f"{end_date_str} {end_time_str}"
 
     # Convert to datetime objects
-    start_datetime = datetime.strptime(start_datetime_str, "%Y-%m-%d %H:%M")
-    end_datetime = datetime.strptime(end_datetime_str, "%Y-%m-%d %H:%M")
+    # start_datetime = datetime.strptime(start_datetime_str, "%Y-%m-%d %H:%M")
+    try:
+        start_datetime = datetime.strptime(start_datetime_str, "%Y-%m-%d %H:%M")
+    except ValueError:
+        start_datetime = datetime.strptime(
+            start_datetime_str, "%Y-%m-%d %H:%M:%S"
+        )
+    try:
+        end_datetime = datetime.strptime(end_datetime_str, "%Y-%m-%d %H:%M")
+    except ValueError:
+        end_datetime = datetime.strptime(end_datetime_str, "%Y-%m-%d %H:%M:%S")
 
     # Compute hours difference from datetime_now
     hours_from_now_start = (
