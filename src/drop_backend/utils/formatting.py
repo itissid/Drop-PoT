@@ -23,9 +23,6 @@ def format_event_summary(
     event_start_datetime_str = (
         f"{event_data['start_date']} {start_datetime_str_std}"
     )
-    event_start_datetime_str = (
-        f"{event_data['start_date']} {event_data['start_time']}"
-    )
 
     event_start_datetime = datetime.strptime(
         event_start_datetime_str, "%Y-%m-%d %H:%M"
