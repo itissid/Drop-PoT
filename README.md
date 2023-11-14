@@ -143,8 +143,7 @@ python main/hoboken_girl_extraction.py index-mood-embeddings MILLENIALS
 
 # 5. Demo!
 ## New Demo(October 2023)
-
-https://github.com/itissid/drop_webdemo
+http://drophere.co
 
 ## OLD Demo
 Lets use the mood embeddings to find relevant embeddings. Check out [this](./example_retrieval.sql) script.
