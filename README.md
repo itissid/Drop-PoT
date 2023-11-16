@@ -1,5 +1,5 @@
 # What's in here?
-This is a framework, tools, libs that enables this [demo](https://github.com/itissid/drop_webdemo). It has
+This is a ETL framework, tools, libs that enables this [demo](https://github.com/itissid/drop_webdemo). It has
 1. An api(see ai.py) with OpenAI Api to ingest `events`(things that have attributes like date, time, address, pricing what have you) and extract structured data from it.
 2. There is a nifty little library that can help you generate stubs for the function call API for OpenAI. Given a Pydantic data model inheriting from the [BaseClass](https://github.com/itissid/poc_drop_content_search/blob/b771ef7a96b091f98b554b8697a22a89fb346226/src/drop_backend/types/base.py#L4) it can:
   - Genenrate [code](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/schema/weather_event_schema.py) for the JsonSchema input to the OpenAI function API and [hooks it up](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L105-L124) with your Pydantic Model to [get](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L160) the function return value. All you have to do is:
