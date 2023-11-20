@@ -64,14 +64,29 @@ Scrape and Ingest data -> Post Process Data -> Extract Events*        -> Embeddi
 
 ## After setting up virtualenv/pyenv you can
 Run:
-`poetry run python -m  main.hoboken_girl_extraction`
+`poetry run python -m  drop_backend.commands --help`
 You will see three commands that are explained in the flow above.
 ```
-╭─ Commands ──────────────────────────────────────────────────────────────────────────────────────────────╮
-│ extract-serialize-events                            Call parse_events and get                           │
-│ ingest-urls                                                                                             │
-│ post-process                                                                                            │
-╰─────────────────────────────────────────────────────────────────────────────────────────────────────────╯ 
+╭─ Commands ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ config-generator-commands                  Generate Code for validating AI responses                                                                                                                                              │
+│ data-ingestion-commands                    Groud Events and Generate Categories for them                                                                                                                                                                                                  │
+│ reverse-geocoding-commands                                                                                                                                                                                                                                                                │
+│ webdemo-adhoc-commands                                                                                                                                                                                                                                                                    │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+poetry run python -m  drop_backend.hoboken_girl_extraction --help
+
+```
+╭─ Commands ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ demo-retrieval                                                                                                                                                                                                                                                                            │
+│ extract-serialize-events                      Call AI to parse all teh events in ingestable_article_file to extract structured events and then save them to the database as JSON.                                                                                                         │
+│ index-event-embeddings                        Retrieve the embeddings for the events and add them to a SQLite vector store                                                                                                                                                                │
+│ index-mood-embeddings                         Used for Indexing Categories as embeddings.                                                                                                                                                                                                 │
+│ index-moods                                   Generated and index the moods using a general prompt, no Grounding.                                                                                                                                                                         │
+│ ingest-urls                                   Take a URL and extract page text from it                                                                                                                                                                                                    │
+│ post-process                                  Custom code to split web text to individual events, reduces the work for ingestion,(for Hoboken Girl Event Pages only)                                                                                                                      │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
 ```
 
 # What each step of the Flow does.
