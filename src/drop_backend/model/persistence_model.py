@@ -4,6 +4,7 @@ Models used for abstracting away data operations.
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import json
 
 from pydantic import BaseModel
 from sqlalchemy import (
@@ -156,7 +157,7 @@ def add_event(
             description=event.description  # type: ignore
             if event and "description" in event.model_fields
             else None,
-            event_json=event.model_dump(exclude=["name", "description"])
+            event_json=json.loads(event.model_dump_json(exclude=["name", "description"]))
             if event is not None
             else None,
             original_event=original_text,

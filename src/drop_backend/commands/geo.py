@@ -152,7 +152,7 @@ def do_rcode(
     for event in parsed_events:
         event_obj = CityEvent(
             **{
-                **json.loads(event.event_json),
+                **event.event_json,
                 **dict(name=event.name, description=event.description),
             }
         )

@@ -218,14 +218,22 @@ def ask_user_helper(txt: str, data_to_format: Optional[Dict[str, str]] = None):
     )
 
 
-# Generated via ChatGPT4 :) # Todo
+def _ensure_scheme(url):
+    if not url.startswith(("http://", "https://")):
+        # Prepend 'https://' if no scheme is present
+        return "https://" + url
+    return url
+
+
+# Generated via ChatGPT4
+# TODO: Replace with a pydantic model with validation.
 def validate_url_file_suggestions(
     loaded_json: List[Dict[str, Union[str, Dict[str, str]]]],
     should_term_color: bool = False,
 ) -> Dict[str, str]:
     result = {}
     for item in loaded_json:
-        url = item.get("url")
+        url = _ensure_scheme(item.get("url"))
         file_names = item.get("file_names")
         if not url or not file_names or not isinstance(file_names, dict):
             raise ValueError("Bad data: missing URL or file names.")

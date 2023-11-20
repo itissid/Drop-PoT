@@ -133,7 +133,9 @@ def _ingest_urls_helper(
         6. The file names for each URL *MUST BE UNIQUE* so add an additional suffix to them to make them unique. 
         7. Generate the output in json array format in triple backticks below.
         8. Make sure the URL keys in the JSON format are *exactly the same* as I provide. DO NOT CHANGE THEM.
-    
+        9. Do NOT change the URL string provided in user messages that follow.
+
+        Here is the output format:
         ```
         [{{
             "url": <url>, 
@@ -280,7 +282,7 @@ def extract_serialize_events(
             typer.echo("Flag set. Already indexing events will be skipped.")
             events = events[items:]
             typer.echo(f"There are {len(events)} events left to index")
-        else: 
+        else:
             typer.echo("Duplicate events will be added to the database!")
         if not would_you_like_to_continue():
             return
