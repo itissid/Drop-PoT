@@ -1,6 +1,6 @@
 # What's in here?
 
-This is a framework, tools, libs that enables my demo. Think workflow automation for ingesting content like [vellum.ai](vellum.ai) and you will get a picture(except that i did not know about vellum and this integrates only with OpenAI for my use case :) ). See [demo](https://github.com/itissid/drop_webdemo) based on these tools. It has
+This is a framework, tools, libs that enables my demo. Think workflow automation for ingesting content like [vellum.ai](vellum.ai) and you will get a picture(except that i did not know about vellum and this integrates only with OpenAI for my use case :) ). See [demo](https://github.com/itissid/drop_webdemo) based on these tools. This backend has:
 1. An api(see ai.py) with OpenAI Api to ingest `events`(things that have attributes like date, time, address, pricing what have you) and extract structured data from it.
 2. There is a nifty little library that can help you generate stubs for the function call API for OpenAI. Given a Pydantic data model inheriting from the [BaseClass](https://github.com/itissid/poc_drop_content_search/blob/b771ef7a96b091f98b554b8697a22a89fb346226/src/drop_backend/types/base.py#L4) it can:
   - Genenrate [code](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/tests/integration/fixtures/schema/weather_event_schema.py) for the JsonSchema input to the OpenAI function API and [hooks it up](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L105-L124) with your Pydantic Model to [get](https://github.com/itissid/Drop-PoT/blob/c982edda666fbf047db193f2b24a77dd6b2fa7a5/src/drop_backend/lib/event_node_manager.py#L160) the function return value. All you have to do is:
@@ -25,6 +25,7 @@ This is a framework, tools, libs that enables my demo. Think workflow automation
   3. Additionally to support NL categorization(a [picture](https://github.com/itissid/drop_webdemo/blob/main/docs/DetailsSmall.jpg) is a 1000 words) of events(kind of like RAG: Use current `event` data only to generate categories) it has utilities to ground AI generated categores by embedding the info in prompts or index the embeddings for events and using vector similarity(K Means) to generate categories. For example for different extracted details of the [events](https://github.com/itissid/poc_drop_content_search/blob/7642f0792c68a104fa5628e4c9663b099c7a1ec4/src/drop_backend/commands/embedding_commands.py#L156) into a SQLite database.
   4. Since `event`s are happening around the city they need to be geocoded, direction and distance needs to be supported. To that extent some utilities exist to use ORS-OpenRouteService to support it.
   5. Use of modern tooling like poetry, pytest, docker to generate wheels for use.
+  6. A Open Route Service API integrations to do some distance calculation, reverse geocoding.
 
 
 # UPDATE (14th July): 
