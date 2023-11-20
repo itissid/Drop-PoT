@@ -22,10 +22,10 @@ This is a framework, tools, libs that enables my demo. Think workflow automation
   ```
   Just note to create the `WeatherEvent` example pydantic model in the file with the name `weather_event.py`.
 
-  3. Additionally to support NL categorization(a [picture](https://github.com/itissid/drop_webdemo/blob/main/docs/DetailsSmall.jpg) is a 1000 words) of events(kind of like RAG: Use current `event` data only to generate categories) it has utilities to ground AI generated categores by embedding the info in prompts or index the embeddings for events and using vector similarity(K Means) to generate categories. For example for different extracted details of the [events](https://github.com/itissid/poc_drop_content_search/blob/7642f0792c68a104fa5628e4c9663b099c7a1ec4/src/drop_backend/commands/embedding_commands.py#L156) into a SQLite database.
+  3. Additionally to support NL categorization(demo's [screenshot](https://github.com/itissid/drop_webdemo/blob/main/docs/DetailsSmall.jpg) is a 1000 words) of events(kind of like RAG: Use current `event` data only to generate categories) it has utilities to ground AI generated categores by embedding the info in prompts or index the embeddings for events and using vector similarity(K Means) to generate categories. For example for different extracted details of the [events](https://github.com/itissid/poc_drop_content_search/blob/7642f0792c68a104fa5628e4c9663b099c7a1ec4/src/drop_backend/commands/embedding_commands.py#L156) into a SQLite database.
   4. Since `event`s are happening around the city they need to be geocoded, direction and distance needs to be supported. To that extent some utilities exist to use ORS-OpenRouteService to support it.
   5. Use of modern tooling like poetry, pytest, docker to generate wheels for use.
-  6. A Open Route Service API integrations to do some distance calculation, reverse geocoding.
+  6. Open Route Service API integrations to do some distance calculation, reverse geocoding.
 
 
 # UPDATE (14th July): 
